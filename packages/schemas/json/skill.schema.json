@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://octopus.local/schemas/skill.schema.json",
+  "title": "Skill",
+  "type": "object",
+  "required": ["skill_id", "name", "version", "category", "risk_level", "default_execution_policy"],
+  "properties": {
+    "skill_id": { "type": "string" },
+    "name": { "type": "string" },
+    "version": { "type": "string" },
+    "category": { "type": "string" },
+    "description": { "type": "string" },
+    "risk_level": { "type": "string", "enum": ["low", "medium", "high"] },
+    "default_execution_policy": { "type": "string", "enum": ["auto", "notify", "confirm"] },
+    "input_schema_ref": { "type": "string" },
+    "output_schema_ref": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+

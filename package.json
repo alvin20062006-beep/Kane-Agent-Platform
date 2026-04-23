@@ -1,0 +1,26 @@
+{
+  "name": "octopus-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Octopus Platform monorepo (Public Free Beta).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n api,web -c magenta,cyan \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "cd apps/api && .\\\\.venv\\\\Scripts\\\\python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+    "dev:bridge": "cd apps/local-bridge && .\\\\.venv\\\\Scripts\\\\python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8010",
+    "dev:web": "npm --workspace @octopus/web run dev",
+    "build:web": "npm --workspace @octopus/web run build",
+    "test:api": "cd apps/api && .\\\\.venv\\\\Scripts\\\\python -m pytest -q",
+    "test:bridge": "cd apps/local-bridge && .\\\\.venv\\\\Scripts\\\\python -m pytest -q",
+    "test:web": "npm --workspace @octopus/web run test",
+    "test:e2e": "npm --workspace @octopus/web run test:e2e",
+    "typecheck:web": "npm --workspace @octopus/web run typecheck"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}
+

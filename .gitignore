@@ -1,0 +1,36 @@
+node_modules/
+.next/
+dist/
+out/
+.turbo/
+.cache/
+
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.venv/
+venv/
+
+.env
+.env.*
+
+.DS_Store
+Thumbs.db
+
+# Local Bridge handoffs / runtime data
+apps/local-bridge/data/
+
+# API file-backed runtime (default: apps/data/ per settings_env.get_api_data_dir)
+apps/data/*
+!apps/data/.gitkeep
+
+# Legacy/alternate API data path (if used)
+apps/api/data/
+
+# E2E / script evidence logs (regenerable)
+reports/*.log
+
+# Ad-hoc local server logs
+*.log
+.runtime-logs/
+

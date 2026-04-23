@@ -1,0 +1,22 @@
+name: octopus-platform-postgres
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=octopus
+      - POSTGRES_USER=octopus
+      - POSTGRES_PASSWORD=octopus
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U octopus -d octopus"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - octopus_pg_data:/var/lib/postgresql/data
+
+volumes:
+  octopus_pg_data:
+

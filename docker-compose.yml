@@ -1,0 +1,57 @@
+name: octopus-platform
+
+services:
+  api:
+    image: python:3.11-slim
+    working_dir: /repo/apps/api
+    volumes:
+      - ./:/repo
+    ports:
+      - "8000:8000"
+    command: >
+      bash -lc "
+      python -m venv .venv &&
+      . .venv/bin/activate &&
+      pip install -r requirements.txt &&
+      python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
+      "
+
+  web:
+    image: node:20-slim
+    working_dir: /repo
+    volumes:
+      - ./:/repo
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_BASE_URL=http://api:8000
+    command: >
+      bash -lc "
+      npm install &&
+      npm --workspace @octopus/web run dev -- --hostname 0.0.0.0 --port 3000
+      "
+    depends_on:
+      - api
+
+  local-bridge:
+    image: python:3.11-slim
+    working_dir: /repo/apps/local-bridge
+    volumes:
+      - ./:/repo
+    ports:
+      - "8010:8010"
+    command: >
+      bash -lc "
+      python -m venv .venv &&
+      . .venv/bin/activate &&
+      pip install -r requirements.txt &&
+      python -m uvicorn app.main:app --host 0.0.0.0 --port 8010
+      "
+
+# Notes:
+# - No production database in this Beta.
+# - Browser on the host cannot reach http://api:8000 — override for web, e.g.:
+#   NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+# - Optional: set OCTOPUS_* / OPENCLAW_* in api/local-bridge via env_file (not committed).
+# - This compose file is for local/dev inspection only, not production-hardened.
+

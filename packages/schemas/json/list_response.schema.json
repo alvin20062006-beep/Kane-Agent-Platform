@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://octopus.local/schemas/list_response.schema.json",
+  "title": "ListResponse",
+  "type": "object",
+  "required": ["is_mock", "items"],
+  "properties": {
+    "is_mock": { "type": "boolean" },
+    "items": { "type": "array", "items": {} },
+    "note": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+

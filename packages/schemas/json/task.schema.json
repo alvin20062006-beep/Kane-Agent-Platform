@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://octopus.local/schemas/task.schema.json",
+  "title": "Task",
+  "type": "object",
+  "required": ["task_id", "title", "status", "created_at"],
+  "properties": {
+    "task_id": { "type": "string" },
+    "title": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": [
+        "created",
+        "queued",
+        "assigned",
+        "running",
+        "waiting_approval",
+        "stalled",
+        "succeeded",
+        "failed",
+        "cancelled",
+        "expired"
+      ]
+    },
+    "assigned_agent_id": { "type": "string" },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+
