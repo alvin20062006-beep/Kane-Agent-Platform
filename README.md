@@ -1,5 +1,7 @@
 # Kāne Agent Platform (Beta)
 
+![Agent Fleet — English UI](docs/images/agent-fleet-en.png)
+
 **Kāne** is a local-first **AI agent platform**: a control plane for running and observing agents, with conversations, tasks, skills, credentials, an optional **Local Bridge** for external tools (CLI / webhook / handoff flows), and a Next.js web UI.
 
 **Kanaloa** is the **built-in Octopus AI agent** shipped with Kāne—the default onboard agent identity in the product UI and seed data. Third-party or self-hosted agents can be added alongside Kanaloa; the platform is not limited to a single vendor model.
