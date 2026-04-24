@@ -1,7 +1,5 @@
 # Kāne Agent Platform (Beta)
 
-![Agent Fleet — English UI](docs/images/agent-fleet-en.png)
-
 **Kāne** is a local-first **AI agent platform**: a control plane for running and observing agents, with conversations, tasks, skills, credentials, an optional **Local Bridge** for external tools (CLI / webhook / handoff flows), and a Next.js web UI.
 
 **Kanaloa** is the **built-in Octopus AI agent** shipped with Kāne—the default onboard agent identity in the product UI and seed data. Third-party or self-hosted agents can be added alongside Kanaloa; the platform is not limited to a single vendor model.
@@ -107,7 +105,12 @@ Issues and PRs are welcome. Keep changes focused; match existing code style.
 
 ## License
 
-This project is released under the **MIT License** — see the [`LICENSE`](LICENSE) file in the repository root.
+**All rights reserved.** This repository and its contents are **not** released under an open-source license.
+
+- **English:** No permission is granted to use, copy, modify, merge, publish, distribute, sublicense, or sell the software for any purpose—including **commercial use**—unless you obtain **prior written permission** from the copyright holder(s).
+- **中文：** 保留所有权利。任何使用、复制、修改或**商用**，均须在事先取得著作权人**书面许可**；本仓库**不以** MIT 等开源许可发布。
+
+For licensing inquiries (evaluation, partnership, etc.), open an issue or contact the repository owner.
 
 ---
 
