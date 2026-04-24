@@ -105,10 +105,7 @@ Issues and PRs are welcome. Keep changes focused; match existing code style.
 
 ## License
 
-**All rights reserved.** This repository and its contents are **not** released under an open-source license.
-
-- **English:** No permission is granted to use, copy, modify, merge, publish, distribute, sublicense, or sell the software for any purpose—including **commercial use**—unless you obtain **prior written permission** from the copyright holder(s).
-- **中文：** 保留所有权利。任何使用、复制、修改或**商用**，均须在事先取得著作权人**书面许可**；本仓库**不以** MIT 等开源许可发布。
+**All rights reserved.** This repository and its contents are **not** released under an open-source license. No permission is granted to use, copy, modify, merge, publish, distribute, sublicense, or sell the software for any purpose—including **commercial use**—unless you obtain **prior written permission** from the copyright holder(s).
 
 For licensing inquiries (evaluation, partnership, etc.), open an issue or contact the repository owner.
 
