@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://octopus.local/schemas/account.schema.json",
+  "title": "Account",
+  "type": "object",
+  "required": ["account_id", "provider", "display_name", "status", "credential_type"],
+  "properties": {
+    "account_id": { "type": "string" },
+    "provider": { "type": "string" },
+    "display_name": { "type": "string" },
+    "credential_type": { "type": "string" },
+    "scopes": { "type": "array", "items": { "type": "string" } },
+    "status": { "type": "string", "enum": ["active", "expired", "revoked", "unknown"] },
+    "expires_at": { "type": "string" },
+    "last_used_at": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+

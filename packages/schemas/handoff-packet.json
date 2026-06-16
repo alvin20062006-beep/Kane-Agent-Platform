@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://octopus.local/schemas/handoff-packet.json",
+  "title": "Kane Handoff Packet",
+  "description": "Structured handoff metadata (frontmatter + callback). Does not replace POST /integrations/bridge/complete.",
+  "type": "object",
+  "required": ["task_id", "run_id", "agent_id", "adapter_id", "callback_url", "completion_mode"],
+  "properties": {
+    "schema_version": { "type": "string", "const": "1.0" },
+    "task_id": { "type": "string" },
+    "run_id": { "type": "string" },
+    "agent_id": { "type": "string" },
+    "adapter_id": { "type": "string" },
+    "callback_url": { "type": "string", "format": "uri" },
+    "integration_path": { "type": "string" },
+    "completion_mode": { "type": "string", "enum": ["handoff_callback", "bridge_sync"] },
+    "api_profile_id": { "type": "string", "description": "Reference only — never raw API keys in handoff files." },
+    "definition_of_done": { "type": "string" },
+    "verification_hint": { "type": "string" }
+  },
+  "additionalProperties": true
+}

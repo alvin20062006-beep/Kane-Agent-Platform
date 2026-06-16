@@ -1,0 +1,29 @@
+﻿{
+    "name":  "octopus-platform",
+    "private":  true,
+    "license":  "UNLICENSED",
+    "version":  "1.1.0",
+    "description":  "Kane / Kāne AI Agent Platform monorepo (proprietary).",
+    "workspaces":  [
+                       "apps/*",
+                       "packages/*"
+                   ],
+    "scripts":  {
+                    "setup:api":  "powershell -ExecutionPolicy Bypass -File scripts/setup-api.ps1",
+                    "setup:bridge":  "powershell -ExecutionPolicy Bypass -File scripts/setup-bridge.ps1",
+                    "setup":  "npm run setup:api \u0026\u0026 npm run setup:bridge",
+                    "dev":  "concurrently -n api,web -c magenta,cyan \"npm run dev:api\" \"npm run dev:web\"",
+                    "dev:stack":  "concurrently -n api,bridge,web -c magenta,yellow,cyan \"npm run dev:api\" \"npm run dev:bridge\" \"npm run dev:web\"",
+                    "wait:stack":  "powershell -ExecutionPolicy Bypass -File scripts/wait-for-stack.ps1",
+                    "dev:api":  "cd apps/api \u0026\u0026 .\\\\.venv\\\\Scripts\\\\python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+                    "dev:bridge":  "cd apps/local-bridge \u0026\u0026 .\\\\.venv\\\\Scripts\\\\python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8010",
+                    "dev:web":  "npm --workspace @octopus/web run dev",
+                    "verify":  "npm run typecheck \u0026\u0026 npm run lint",
+                    "typecheck":  "npm --workspace @octopus/web run typecheck",
+                    "build:web":  "npm --workspace @octopus/web run build",
+                    "lint":  "npm --workspace @octopus/web run lint"
+                },
+    "devDependencies":  {
+                            "concurrently":  "^9.2.1"
+                        }
+}

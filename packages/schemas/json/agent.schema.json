@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://octopus.local/schemas/agent.schema.json",
+  "title": "Agent",
+  "type": "object",
+  "required": ["agent_id", "display_name", "type", "status", "capabilities"],
+  "properties": {
+    "agent_id": { "type": "string" },
+    "display_name": { "type": "string" },
+    "type": { "type": "string", "enum": ["builtin", "external"] },
+    "status": { "type": "string", "enum": ["idle", "running", "stalled", "offline", "degraded"] },
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "can_chat": { "type": "boolean" },
+        "can_code": { "type": "boolean" },
+        "can_browse": { "type": "boolean" },
+        "can_use_skills": { "type": "boolean" },
+        "can_generate_images": { "type": "boolean" },
+        "can_run_local_commands": { "type": "boolean" },
+        "can_stream": { "type": "boolean" },
+        "supports_structured_task": { "type": "boolean" },
+        "supports_mobile_input": { "type": "boolean" }
+      },
+      "required": ["can_chat", "can_code", "can_browse", "can_use_skills"],
+      "additionalProperties": false
+    },
+    "last_heartbeat_at": { "type": "string" }
+  },
+  "additionalProperties": false
+}
+

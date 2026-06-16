@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://octopus.local/schemas/watchdog.schema.json",
+  "title": "WatchdogStatus",
+  "type": "object",
+  "required": ["summary", "events"],
+  "properties": {
+    "summary": {
+      "type": "object",
+      "required": ["running_tasks", "stalled_agents", "offline_agents"],
+      "properties": {
+        "running_tasks": { "type": "integer", "minimum": 0 },
+        "stalled_agents": { "type": "integer", "minimum": 0 },
+        "offline_agents": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["event_id", "type", "created_at"],
+        "properties": {
+          "event_id": { "type": "string" },
+          "type": { "type": "string" },
+          "message": { "type": "string" },
+          "created_at": { "type": "string" }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
+
