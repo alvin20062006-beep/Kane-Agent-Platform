@@ -167,18 +167,21 @@ The current v2.0.0 built-in path is Kanaloa. The current code does not provide a
 
 Task, Run, and RunStep terminal states should not contradict each other. Failure paths must remain honest: permission errors, missing tools, and handoff states are recorded instead of being reported as fake success.
 
-## Verification + Repair + Task Reconciliation Loop
+## Reliable Agent Execution
 
-Loop in v2.0.0 is a platform execution loop that includes:
+Most AI agent frameworks only expose the final outcome.
 
-- Task creation and assignment.
-- Run creation for an execution attempt.
-- RunStep timeline creation and finalization.
-- Worker execution.
-- Builtin executor or Local Bridge dispatch.
-- Bridge callback/result handling.
-- Verifier and repair references when present: VerifierResult checks execution; RepairAttempt records repair actions if verification fails.
-- Task status reconciliation: Task, Run, and RunStep terminal states are aligned so they do not contradict each other. Failure paths remain honest.
+Kane records the complete execution process, allowing every task to be inspected, verified, repaired, and reproduced.
+
+For every execution, Kane can preserve:
+
+- Execution Timeline
+- Evidence References
+- Verification Results
+- Repair History
+- Execution State Reconciliation
+
+Instead of treating execution as a black box, Kane makes agent behavior transparent, traceable, and repeatable.
 
 ## Platform-Owned MoA Layer
 
