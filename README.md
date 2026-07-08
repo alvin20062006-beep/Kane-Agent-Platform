@@ -123,9 +123,9 @@ The current v2.0.0 built-in path is Kanaloa. The current code does not provide a
 
 Task, Run, and RunStep terminal states should not contradict each other. Failure paths must remain honest: permission errors, missing tools, and handoff states are recorded instead of being reported as fake success.
 
-## Loop
+## Verification + Repair + Task Reconciliation Loop
 
-Loop in v2.0.0 is a platform execution loop, not a Kanaloa-private loop and not just the worker queue. The loop includes:
+Loop in v2.0.0 is a platform execution loop that includes:
 
 - Task creation and assignment.
 - Run creation for an execution attempt.
@@ -133,18 +133,18 @@ Loop in v2.0.0 is a platform execution loop, not a Kanaloa-private loop and not 
 - Worker execution.
 - Builtin executor or Local Bridge dispatch.
 - Bridge callback/result handling.
-- Verifier and repair references when present.
-- Task status reconciliation from explicit worker, Run, Bridge, handoff, or failure outcomes.
+- Verifier and repair references when present: VerifierResult checks execution; RepairAttempt records repair actions if verification fails.
+- Task status reconciliation: Task, Run, and RunStep terminal states are aligned so they do not contradict each other. Failure paths remain honest.
 
-## MoA
+## Platform-Owned MoA Layer
 
-MoA-style review is represented as Kane platform records:
+Kane provides infrastructure for multi-perspective decision making:
 
-- Reference Candidate records.
-- Aggregator Decision records.
-- RunStep reference IDs linking decisions and evidence.
+- Reference Candidate records: Multiple viewpoints (architect_reviewer, implementation_reviewer, security_reviewer, test_reviewer, docs_reviewer) on a RunStep.
+- Aggregator Decision records: Synthesis of candidates with confidence, known gaps, and verifier requirements.
+- RunStep reference linking: Decision records attached to execution steps via reference IDs.
 
-This layer is optional and platform-owned. It is not Kanaloa-private. Future agents can call or contribute to the same platform reference and aggregation layer, but v2.0.0 does not claim automatic multi-model orchestration.
+This layer is optional and platform-owned, not Kanaloa-private. It is not automatic MoA orchestration (v2.0.0 does not claim that). Future agents can leverage these records for actual MoA strategies. The infrastructure is there; the automation is not (yet).
 
 ## Memory
 
