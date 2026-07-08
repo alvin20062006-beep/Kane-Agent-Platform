@@ -11,6 +11,7 @@ from ...pagination import (
     paginate,
 )
 from ...store.run_log_queries import list_logs_for_run
+from ...store.run_step_queries import list_steps_for_run
 
 from ...models import (
     ConversationCreateBody,
@@ -27,7 +28,18 @@ from ...models import (
     FileArtifact,
     FileArtifactCreateBody,
     GovernorEvaluateBody,
+    MemoryEvidenceSearchBody,
+    MemoryCompilerCandidateCommitBody,
+    MemoryCompilerRunCreateBody,
+    MemoryEventAppendBody,
+    MemoryExactRetrievalBody,
+    MemoryPurgeBody,
+    MemoryRuntimeContextBody,
+    MemoryRewriteBody,
     NotificationChannelUpsertBody,
+    ReferenceAggregationCreateBody,
+    ReferenceCandidateCreateBody,
+    RepairAttemptCreateBody,
     ListResponse,
     ClaudeAdapterDispatchBody,
     KanaloaCancelBody,
@@ -42,6 +54,7 @@ from ...models import (
     TaskCreateBody,
     TaskFailBody,
     TaskRejectBody,
+    VerifierResultCreateBody,
     SkillExecuteBody,
     SkillPatchBody,
     CredentialUpsertBody,
@@ -106,6 +119,7 @@ from ...store.repositories import (
     file_artifacts_repo,
     local_bridge_repo,
     memory_repo,
+    memory_index_repo,
     policies_repo,
     notification_channels_repo,
     notification_deliveries_repo,
@@ -118,6 +132,46 @@ from ...store.repositories import (
     tasks_repo,
 )
 from ...services.notifications import upsert_channel
+from ...services.memory_ledger import (
+    append_memory_event,
+    rebuild_active_snapshot,
+    record_memory_item_event,
+    user_delete_memory,
+    user_purge_memory,
+    user_rewrite_memory,
+)
+from ...store.memory_event_queries import list_memory_events
+from ...services.memory_retrieval import (
+    build_runtime_memory_context,
+    exact_retrieve,
+    native_evidence_search,
+)
+from ...services.memory_compiler import (
+    commit_memory_compiler_candidate,
+    get_memory_compiler_candidate,
+    get_memory_compiler_run,
+    list_memory_compiler_candidates,
+    list_memory_compiler_runs,
+    run_memory_compiler,
+)
+from ...services.reference_layer import (
+    create_aggregator_decision,
+    create_reference_candidate,
+    get_aggregator_decision,
+    get_reference_candidate,
+    list_aggregator_decisions,
+    list_reference_candidates,
+)
+from ...services.verifier_interface import (
+    create_verifier_result,
+    get_verifier_result,
+    list_verifier_results,
+)
+from ...services.repair_loop import (
+    create_repair_attempt,
+    get_repair_attempt,
+    list_repair_attempts,
+)
 from ...services.api_profiles import (
     bind_agent,
     delete_profile,
@@ -531,6 +585,186 @@ def runs_get(
     return {"version": PLATFORM_VERSION, "note": NOTE, "data": run, "logs": logs, "logs_total": logs_total}
 
 
+@router.get("/runs/{run_id}/steps")
+def runs_steps(run_id: str):
+    run = runs_repo.get(run_id)
+    if not run:
+        raise HTTPException(status_code=404, detail="run_not_found")
+    steps, steps_total = list_steps_for_run(run_id)
+    return {"version": PLATFORM_VERSION, "note": NOTE, "items": steps, "total": steps_total}
+
+
+@router.post("/runs/{run_id}/verifier-results")
+def runs_verifier_result_create(run_id: str, body: VerifierResultCreateBody):
+    result = create_verifier_result(
+        run_id=run_id,
+        run_step_id=body.run_step_id,
+        verifier_type=body.verifier_type,
+        status=body.status,
+        passed=body.passed,
+        findings=body.findings,
+        command_key=body.command_key,
+        check_key=body.check_key,
+        output_summary=body.output_summary,
+        error_summary=body.error_summary,
+        evidence_refs=body.evidence_refs,
+        metadata=body.metadata,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": result}
+
+
+@router.get("/runs/{run_id}/verifier-results", response_model=ListResponse)
+def runs_verifier_results_list(
+    run_id: str,
+    run_step_id: str | None = None,
+    verifier_type: str | None = None,
+    status: str | None = None,
+    limit: int | None = Query(default=None, ge=1),
+    offset: int = Query(default=0, ge=0),
+):
+    if not runs_repo.get(run_id):
+        raise HTTPException(status_code=404, detail="run_not_found")
+    items = list_verifier_results(
+        run_id=run_id,
+        run_step_id=run_step_id,
+        verifier_type=verifier_type,
+        status=status,
+    )
+    window, meta = paginate(items, limit, offset)
+    return ListResponse(version=PLATFORM_VERSION, note="Verifier results are recorded interface outputs only.", items=window, **meta)
+
+
+@router.get("/verifier-results/{result_id}")
+def verifier_result_get(result_id: str):
+    result = get_verifier_result(result_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="verifier_result_not_found")
+    return {"version": PLATFORM_VERSION, "data": result}
+
+
+@router.post("/runs/{run_id}/repair-attempts")
+def runs_repair_attempt_create(run_id: str, body: RepairAttemptCreateBody):
+    attempt = create_repair_attempt(
+        run_id=run_id,
+        run_step_id=body.run_step_id,
+        verifier_result_id=body.verifier_result_id,
+        failure_id=body.failure_id,
+        failure_ref=body.failure_ref,
+        failure_type=body.failure_type,
+        attempt_kind=body.attempt_kind,
+        status=body.status,
+        repair_action=body.repair_action,
+        action_key=body.action_key,
+        repair_key=body.repair_key,
+        needs_user_confirmation=body.needs_user_confirmation,
+        high_risk=body.high_risk,
+        user_confirmed=body.user_confirmed,
+        evidence_refs=body.evidence_refs,
+        metadata=body.metadata,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": attempt}
+
+
+@router.get("/runs/{run_id}/repair-attempts", response_model=ListResponse)
+def runs_repair_attempts_list(
+    run_id: str,
+    run_step_id: str | None = None,
+    verifier_result_id: str | None = None,
+    status: str | None = None,
+    limit: int | None = Query(default=None, ge=1),
+    offset: int = Query(default=0, ge=0),
+):
+    if not runs_repo.get(run_id):
+        raise HTTPException(status_code=404, detail="run_not_found")
+    items = list_repair_attempts(
+        run_id=run_id,
+        run_step_id=run_step_id,
+        verifier_result_id=verifier_result_id,
+        status=status,
+    )
+    window, meta = paginate(items, limit, offset)
+    return ListResponse(version=PLATFORM_VERSION, note="Retry and repair attempts are execution evidence only.", items=window, **meta)
+
+
+@router.get("/repair-attempts/{repair_attempt_id}")
+def repair_attempt_get(repair_attempt_id: str):
+    attempt = get_repair_attempt(repair_attempt_id)
+    if not attempt:
+        raise HTTPException(status_code=404, detail="repair_attempt_not_found")
+    return {"version": PLATFORM_VERSION, "data": attempt}
+
+
+@router.post("/runs/{run_id}/reference-candidates")
+def runs_reference_candidate_create(run_id: str, body: ReferenceCandidateCreateBody):
+    candidate = create_reference_candidate(
+        run_id=run_id,
+        run_step_id=body.run_step_id,
+        agent_role=body.agent_role,
+        summary=body.summary,
+        risks=body.risks,
+        recommended_plan=body.recommended_plan,
+        files_to_touch=body.files_to_touch,
+        confidence=body.confidence,
+        evidence_refs=body.evidence_refs,
+        metadata=body.metadata,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": candidate}
+
+
+@router.get("/runs/{run_id}/reference-candidates", response_model=ListResponse)
+def runs_reference_candidates_list(
+    run_id: str,
+    run_step_id: str | None = None,
+    limit: int | None = Query(default=None, ge=1),
+    offset: int = Query(default=0, ge=0),
+):
+    items = list_reference_candidates(run_id=run_id, run_step_id=run_step_id)
+    window, meta = paginate(items, limit, offset)
+    return ListResponse(version=PLATFORM_VERSION, note="Reference candidates are advisory only.", items=window, **meta)
+
+
+@router.get("/reference-candidates/{candidate_id}")
+def reference_candidate_get(candidate_id: str):
+    candidate = get_reference_candidate(candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="reference_candidate_not_found")
+    return {"version": PLATFORM_VERSION, "data": candidate}
+
+
+@router.post("/runs/{run_id}/reference-aggregations")
+def runs_reference_aggregation_create(run_id: str, body: ReferenceAggregationCreateBody):
+    decision = create_aggregator_decision(
+        run_id=run_id,
+        run_step_id=body.run_step_id,
+        candidate_ids=body.candidate_ids,
+        requires_user_confirmation=body.requires_user_confirmation,
+        known_gaps=body.known_gaps,
+        verifier_requirements=body.verifier_requirements,
+        metadata=body.metadata,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": decision}
+
+
+@router.get("/runs/{run_id}/reference-aggregations", response_model=ListResponse)
+def runs_reference_aggregations_list(
+    run_id: str,
+    run_step_id: str | None = None,
+    limit: int | None = Query(default=None, ge=1),
+    offset: int = Query(default=0, ge=0),
+):
+    items = list_aggregator_decisions(run_id=run_id, run_step_id=run_step_id)
+    window, meta = paginate(items, limit, offset)
+    return ListResponse(version=PLATFORM_VERSION, note="Reference aggregation decisions for run timeline.", items=window, **meta)
+
+
+@router.get("/reference-aggregations/{aggregation_id}")
+def reference_aggregation_get(aggregation_id: str):
+    decision = get_aggregator_decision(aggregation_id)
+    if not decision:
+        raise HTTPException(status_code=404, detail="reference_aggregation_not_found")
+    return {"version": PLATFORM_VERSION, "data": decision}
+
+
 @router.get("/skills", response_model=ListResponse)
 def skills_list(
     limit: int | None = Query(default=None, ge=1),
@@ -626,6 +860,214 @@ def memory_list(
     return ListResponse(version=PLATFORM_VERSION, note=NOTE, items=window, **meta)
 
 
+@router.post("/memory/events")
+def memory_events_append(body: MemoryEventAppendBody):
+    event = append_memory_event(
+        event_type=body.event_type,
+        memory_id=body.memory_id,
+        subject_key=body.subject_key,
+        scope_type=body.scope_type,
+        scope_id=body.scope_id,
+        source_type=body.source_type,
+        source_id=body.source_id,
+        run_id=body.run_id,
+        run_step_id=body.run_step_id,
+        task_id=body.task_id,
+        conversation_id=body.conversation_id,
+        skill_id=body.skill_id,
+        decision_id=body.decision_id,
+        failure_id=body.failure_id,
+        content_json=body.content_json,
+        value_json=body.value_json,
+        evidence_refs=body.evidence_refs,
+        confidence=body.confidence,
+        policy_result=body.policy_result,
+        supersedes_event_id=body.supersedes_event_id,
+        invalidates_event_id=body.invalidates_event_id,
+        created_by=body.created_by,
+        metadata=body.metadata,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": event}
+
+
+@router.get("/memory/events", response_model=ListResponse)
+def memory_events_list(
+    memory_id: str | None = None,
+    event_type: str | None = None,
+    subject_key: str | None = None,
+    limit: int | None = Query(default=None, ge=1),
+    offset: int = Query(default=0, ge=0),
+):
+    events = list_memory_events(memory_id=memory_id, event_type=event_type, subject_key=subject_key)
+    window, meta = paginate(events, limit, offset)
+    return ListResponse(version=PLATFORM_VERSION, note="Append-only AI memory ledger events.", items=window, **meta)
+
+
+@router.get("/memory/index", response_model=ListResponse)
+def memory_index_list(status: str | None = None):
+    items = memory_index_repo.list()
+    if status:
+        items = [item for item in items if item.status == status]
+    items.sort(key=lambda x: x.updated_at, reverse=True)
+    return ListResponse(version=PLATFORM_VERSION, note="Current memory projection; not a retrieval framework.", items=items)
+
+
+@router.get("/memory/snapshot")
+def memory_snapshot_get():
+    snapshot = rebuild_active_snapshot()
+    return {
+        "version": PLATFORM_VERSION,
+        "note": "Active Snapshot is prompt-eligible summary data; the ledger is not injected directly.",
+        "data": snapshot,
+    }
+
+
+@router.post("/memory/compiler/runs")
+def memory_compiler_run_create(body: MemoryCompilerRunCreateBody):
+    compiler_run, candidates = run_memory_compiler(
+        run_id=body.run_id,
+        task_id=body.task_id,
+        dry_run=body.dry_run,
+        max_candidates=body.max_candidates,
+        metadata=body.metadata,
+    )
+    return {
+        "ok": True,
+        "version": PLATFORM_VERSION,
+        "note": "Compiler runs are dry-run only; commit a candidate explicitly to append MemoryEvent.",
+        "data": compiler_run,
+        "candidates": candidates,
+    }
+
+
+@router.get("/memory/compiler/runs", response_model=ListResponse)
+def memory_compiler_runs_list(
+    run_id: str | None = None,
+    task_id: str | None = None,
+    limit: int | None = Query(default=None, ge=1),
+    offset: int = Query(default=0, ge=0),
+):
+    items = list_memory_compiler_runs(run_id=run_id, task_id=task_id)
+    window, meta = paginate(items, limit, offset)
+    return ListResponse(version=PLATFORM_VERSION, note="Background Memory Compiler dry-run records.", items=window, **meta)
+
+
+@router.get("/memory/compiler/runs/{compiler_run_id}")
+def memory_compiler_run_get(compiler_run_id: str):
+    compiler_run = get_memory_compiler_run(compiler_run_id)
+    if not compiler_run:
+        raise HTTPException(status_code=404, detail="memory_compiler_run_not_found")
+    candidates = list_memory_compiler_candidates(compiler_run_id=compiler_run_id)
+    return {"version": PLATFORM_VERSION, "data": compiler_run, "candidates": candidates}
+
+
+@router.get("/memory/compiler/candidates", response_model=ListResponse)
+def memory_compiler_candidates_list(
+    compiler_run_id: str | None = None,
+    run_id: str | None = None,
+    task_id: str | None = None,
+    status: str | None = None,
+    candidate_type: str | None = None,
+    limit: int | None = Query(default=None, ge=1),
+    offset: int = Query(default=0, ge=0),
+):
+    items = list_memory_compiler_candidates(
+        compiler_run_id=compiler_run_id,
+        run_id=run_id,
+        task_id=task_id,
+        status=status,
+        candidate_type=candidate_type,
+    )
+    window, meta = paginate(items, limit, offset)
+    return ListResponse(version=PLATFORM_VERSION, note="Compiler candidates are not MemoryEvents until committed.", items=window, **meta)
+
+
+@router.get("/memory/compiler/candidates/{candidate_id}")
+def memory_compiler_candidate_get(candidate_id: str):
+    candidate = get_memory_compiler_candidate(candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="memory_compiler_candidate_not_found")
+    return {"version": PLATFORM_VERSION, "data": candidate}
+
+
+@router.post("/memory/compiler/candidates/{candidate_id}/commit")
+def memory_compiler_candidate_commit(candidate_id: str, body: MemoryCompilerCandidateCommitBody):
+    candidate, event = commit_memory_compiler_candidate(candidate_id, metadata=body.metadata)
+    return {
+        "ok": True,
+        "version": PLATFORM_VERSION,
+        "note": "Candidate committed through append_memory_event; index and snapshot are ledger projections.",
+        "data": candidate,
+        "event": event,
+    }
+
+
+@router.post("/memory/retrieve/exact")
+def memory_retrieve_exact(body: MemoryExactRetrievalBody):
+    result = exact_retrieve(body.key_type, body.key, limit=body.limit, max_chars=body.max_chars)
+    return {"ok": True, "version": PLATFORM_VERSION, "data": result}
+
+
+@router.post("/memory/retrieve/search")
+def memory_retrieve_search(body: MemoryEvidenceSearchBody):
+    result = native_evidence_search(
+        body.query,
+        sources=body.sources,
+        limit=body.limit,
+        max_chars=body.max_chars,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": result}
+
+
+@router.post("/memory/retrieve/runtime-context")
+def memory_retrieve_runtime_context(body: MemoryRuntimeContextBody):
+    result = build_runtime_memory_context(
+        query=body.query,
+        task_id=body.task_id,
+        run_id=body.run_id,
+        conversation_id=body.conversation_id,
+        evidence_limit=body.evidence_limit,
+        max_chars=body.max_chars,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": result}
+
+
+@router.post("/memory/{memory_id}/events/supersede")
+def memory_event_supersede(memory_id: str, body: MemoryEventAppendBody):
+    if not memory_repo.get(memory_id):
+        raise HTTPException(status_code=404, detail="memory_not_found")
+    event = append_memory_event(
+        event_type="superseded",
+        memory_id=memory_id,
+        subject_key=body.subject_key,
+        content_json=body.content_json,
+        value_json=body.value_json,
+        evidence_refs=body.evidence_refs,
+        supersedes_event_id=body.supersedes_event_id,
+        created_by=body.created_by,
+        metadata=body.metadata,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": event}
+
+
+@router.post("/memory/{memory_id}/events/invalidate")
+def memory_event_invalidate(memory_id: str, body: MemoryEventAppendBody):
+    if not memory_repo.get(memory_id):
+        raise HTTPException(status_code=404, detail="memory_not_found")
+    event = append_memory_event(
+        event_type="invalidated",
+        memory_id=memory_id,
+        subject_key=body.subject_key,
+        content_json=body.content_json,
+        value_json=body.value_json,
+        evidence_refs=body.evidence_refs,
+        invalidates_event_id=body.invalidates_event_id,
+        created_by=body.created_by,
+        metadata=body.metadata,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": event}
+
+
 @router.get("/memory/candidates", response_model=ListResponse)
 def memory_candidates_list(
     limit: int | None = Query(default=None, ge=1),
@@ -651,6 +1093,7 @@ def approve_memory_candidate(memory_id: str):
         raise HTTPException(status_code=400, detail="not_a_candidate")
     updated = m.model_copy(update={"status": "approved"})
     memory_repo.upsert(updated)
+    record_memory_item_event(updated, event_type="user_approved", created_by="user")
     return {"ok": True, "version": PLATFORM_VERSION, "note": "Optional API token in production; audit via GET /audit/export", "data": updated}
 
 
@@ -663,7 +1106,33 @@ def reject_memory_candidate(memory_id: str):
         raise HTTPException(status_code=400, detail="not_a_candidate")
     updated = m.model_copy(update={"status": "rejected"})
     memory_repo.upsert(updated)
+    record_memory_item_event(updated, event_type="user_rejected", created_by="user")
     return {"ok": True, "version": PLATFORM_VERSION, "note": "Optional API token in production; audit via GET /audit/export", "data": updated}
+
+
+@router.post("/memory/{memory_id}/rewrite")
+def memory_rewrite(memory_id: str, body: MemoryRewriteBody):
+    updated = user_rewrite_memory(
+        memory_id,
+        title=body.title,
+        content=body.content,
+        status=body.status,
+        tags=body.tags,
+        reason=body.reason,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, "data": updated}
+
+
+@router.post("/memory/purge")
+def memory_purge(body: MemoryPurgeBody):
+    if not body.confirm:
+        raise HTTPException(status_code=400, detail="purge_requires_confirm_true")
+    result = user_purge_memory(
+        memory_ids=body.memory_ids,
+        include_ledger=body.include_ledger,
+        reason=body.reason,
+    )
+    return {"ok": True, "version": PLATFORM_VERSION, **result}
 
 
 @router.delete("/memory/{memory_id}")
@@ -671,7 +1140,7 @@ def memory_delete(memory_id: str):
     m = memory_repo.get(memory_id)
     if not m:
         raise HTTPException(status_code=404, detail="memory_not_found")
-    memory_repo.delete(memory_id)
+    user_delete_memory(memory_id)
     return {"ok": True, "version": PLATFORM_VERSION, "deleted_id": memory_id}
 
 
@@ -972,11 +1441,11 @@ def agent_bind_api_profile(agent_id: str, body: AgentApiBindingBody):
 
 @router.get("/local-bridge")
 def local_bridge_status():
-    m = build_metrics()
+    probe = probe_local_bridge_detailed()
+    m = build_metrics(bridge_probe=probe)
     lb = m.get("local_bridge", {})
     bridge_agents = local_bridge_repo.list()
     bridge_agents.sort(key=lambda x: x.last_seen_at, reverse=True)
-    probe = probe_local_bridge_detailed()
     bs = probe.get("bridge_status") if isinstance(probe.get("bridge_status"), dict) else {}
     le = bs.get("last_execute") if isinstance(bs.get("last_execute"), dict) else {}
     return {
@@ -1004,7 +1473,7 @@ def local_bridge_status():
 
 @router.post("/local-bridge/probe")
 def local_bridge_probe():
-    return {"version": PLATFORM_VERSION, "data": probe_local_bridge_detailed()}
+    return {"version": PLATFORM_VERSION, "data": probe_local_bridge_detailed(fresh=True)}
 
 
 @router.post("/local-bridge/register")

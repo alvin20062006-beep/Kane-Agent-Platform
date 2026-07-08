@@ -5,6 +5,7 @@ from pathlib import Path
 from ..models import (
     Account,
     Agent,
+    AggregatorDecision,
     AdvisorSuggestion,
     Conversation,
     ConversationMessage,
@@ -17,6 +18,11 @@ from ..models import (
     GovernorDecision,
     LocalBridgeAgentState,
     TaskApproval,
+    ActiveMemorySnapshot,
+    MemoryCompilerCandidate,
+    MemoryCompilerRun,
+    MemoryEvent,
+    MemoryIndexEntry,
     MemoryItem,
     NotificationChannel,
     NotificationDelivery,
@@ -25,12 +31,16 @@ from ..models import (
     AgentApiBinding,
     AgentApiProfile,
     Report,
+    RepairAttempt,
     Run,
     RunLogLine,
+    RunStep,
+    ReferenceCandidate,
     Skill,
     TaskAssignment,
     Task,
     TaskEventRecord,
+    VerifierResult,
     WatchdogEvent,
 )
 from ..settings_env import get_api_data_dir, get_persistence_backend
@@ -58,6 +68,15 @@ skills_repo = _store("skills", Skill, "skill_id")
 accounts_repo = _store("accounts", Account, "account_id")
 credentials_repo = _store("credentials", Credential, "credential_id")
 memory_repo = _store("memory", MemoryItem, "memory_id")
+memory_events_repo = _store("memory_events", MemoryEvent, "event_id")
+memory_index_repo = _store("memory_index", MemoryIndexEntry, "index_id")
+active_memory_snapshots_repo = _store("active_memory_snapshots", ActiveMemorySnapshot, "snapshot_id")
+memory_compiler_runs_repo = _store("memory_compiler_runs", MemoryCompilerRun, "compiler_run_id")
+memory_compiler_candidates_repo = _store(
+    "memory_compiler_candidates",
+    MemoryCompilerCandidate,
+    "candidate_id",
+)
 policies_repo = _store("policies", ExecutionPolicy, "policy_id")
 reports_repo = _store("reports", Report, "report_id")
 advisor_suggestions_repo = _store("advisor_suggestions", AdvisorSuggestion, "suggestion_id")
@@ -66,6 +85,11 @@ task_events_repo = _store("task_events", TaskEventRecord, "event_id")
 task_assignments_repo = _store("task_assignments", TaskAssignment, "assignment_id")
 runs_repo = _store("runs", Run, "run_id")
 run_logs_repo = _store("run_logs", RunLogLine, "log_id")
+run_steps_repo = _store("run_steps", RunStep, "run_step_id")
+verifier_results_repo = _store("verifier_results", VerifierResult, "result_id")
+repair_attempts_repo = _store("repair_attempts", RepairAttempt, "repair_attempt_id")
+reference_candidates_repo = _store("reference_candidates", ReferenceCandidate, "candidate_id")
+aggregator_decisions_repo = _store("aggregator_decisions", AggregatorDecision, "aggregation_id")
 local_bridge_repo = _store("local_bridge", LocalBridgeAgentState, "state_id")
 watchdog_events_repo = _store("watchdog_events", WatchdogEvent, "event_id")
 

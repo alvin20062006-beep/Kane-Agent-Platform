@@ -15,7 +15,7 @@
 ## 当前实现要点
 
 - 列表 API 经 `skill_visibility` 过滤用户可见项；部分内部/示例技能可不展示。
-- **执行**：通过 API 路由委托 `execute_skill`，可能产生任务事件与 run 日志；具名 skill 行为以代码为准（如 HTTP、内置 demo 等）。
+- **执行**：通过 API 路由委托 `execute_skill`，可能产生任务事件与 run 日志；具名 skill 行为以代码为准（如 HTTP 或内置 skill 行为）。
 - **发布 / 更新**：`publish`、`PATCH`、`DELETE` 等路由存在；能力与权限边界以控制面配置为准。
 
 ## 尚未宣称的能力

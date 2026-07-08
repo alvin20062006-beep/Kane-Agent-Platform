@@ -21,6 +21,7 @@ from .runtime_audit import (
     now_iso,
     normalize_issue,
 )
+from .task_status_reconciliation import is_permission_denied_failure
 from .task_lifecycle import retry_task
 
 
@@ -289,10 +290,66 @@ def run_fixer_once() -> list[WatchdogEvent]:
                 append_task_event(
                     task.task_id,
                     "fixer_mark_failed",
-                    "Fixer marked stalled task failed before retry",
+                    "Fixer marked stalled task failed",
                     correlation_id=task.correlation_id,
                     payload={"issue_class": issue.issue_class},
                 )
+                if (issue.raw_error or "").lower() == "queue_timeout":
+                    task = mark_task_attention(
+                        task,
+                        "Queued run timed out; manual review is required before retry.",
+                        source="fixer",
+                    )
+                    event = append_watchdog_issue(
+                        "fixer_defer_queue_timeout",
+                        f"Task {task.task_id} timed out in queue and was not automatically retried",
+                        severity="warn",
+                        task=task,
+                        raw_error=issue.raw_error,
+                        source="fixer",
+                        issue_status="escalated",
+                        suggested_action="defer_to_human",
+                        recovery_hint="Confirm the assigned agent is available, then retry manually.",
+                        parent_run_id=issue.related_run_id,
+                    )
+                    finalize_processed_receipt(
+                        "fixer_action",
+                        receipt_key,
+                        status="completed",
+                        task_id=task.task_id,
+                        correlation_id=task.correlation_id,
+                        result_ref=event.event_id,
+                    )
+                    emitted.append(event)
+                    continue
+                if is_permission_denied_failure(issue.raw_error, task.last_error, task.result_payload):
+                    task = mark_task_attention(
+                        task,
+                        "Permission denied by local execution environment; manual review is required before retry.",
+                        source="fixer",
+                    )
+                    event = append_watchdog_issue(
+                        "fixer_defer_permission_denied",
+                        f"Task {task.task_id} failed with a permission error and was not automatically retried",
+                        severity="warn",
+                        task=task,
+                        raw_error=issue.raw_error,
+                        source="fixer",
+                        issue_status="escalated",
+                        suggested_action="defer_to_human",
+                        recovery_hint="Review local CLI permissions before retrying this task.",
+                        parent_run_id=issue.related_run_id,
+                    )
+                    finalize_processed_receipt(
+                        "fixer_action",
+                        receipt_key,
+                        status="completed",
+                        task_id=task.task_id,
+                        correlation_id=task.correlation_id,
+                        result_ref=event.event_id,
+                    )
+                    emitted.append(event)
+                    continue
                 retried = retry_task(task.task_id)
                 event = append_watchdog_issue(
                     "fixer_retry",

@@ -437,52 +437,6 @@ function SkillDetail({
   );
 }
 
-// ---------- Placeholder modals (skill upload — UI placeholder) ----------
-
-function SkillPlaceholderModal({ title, onClose }: { title: string; onClose: () => void }) {
-  const t = useT();
-  return (
-    <>
-      <div className="fixed inset-0 z-40 bg-black/30" onClick={onClose} aria-hidden />
-      <div
-        role="dialog"
-        aria-modal="true"
-        className="fixed left-1/2 top-1/2 z-50 w-full max-w-sm -translate-x-1/2 -translate-y-1/2 rounded-xl border border-zinc-200 bg-white shadow-xl"
-      >
-        <div className="space-y-3 p-5">
-          <div className="flex items-center gap-2">
-            <span
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full"
-              style={{ background: "var(--octo-yellow-soft)", color: "var(--octo-yellow)" }}
-              aria-hidden
-            >
-              ⚡
-            </span>
-            <h3 className="text-sm font-semibold text-zinc-900">{title}</h3>
-          </div>
-          <p className="text-xs leading-relaxed text-zinc-600">
-            {t("skills.upload_body_1")}
-            {t("skills.upload_body_2")}
-            <code className="rounded bg-zinc-100 px-1 font-mono">skills_repo</code>
-            {t("skills.upload_body_3")}
-            <code className="rounded bg-zinc-100 px-1 font-mono">PATCH /skills/{"{id}"}</code>
-            {t("skills.upload_body_4")}
-          </p>
-          <div className="pt-2 text-right">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-lg bg-zinc-900 px-4 py-1.5 text-xs font-medium text-white hover:bg-zinc-800"
-            >
-              OK
-            </button>
-          </div>
-        </div>
-      </div>
-    </>
-  );
-}
-
 // ---------- Page ----------
 
 export default function SkillsPage() {
@@ -494,7 +448,6 @@ export default function SkillsPage() {
   const [skillTab, setSkillTab] = useState<"installed" | "platform" | "private">("installed");
   const [query, setQuery] = useState("");
   const [showDisabled, setShowDisabled] = useState(false);
-  const [placeholder, setPlaceholder] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [useOutput, setUseOutput] = useState<string | null>(null);
@@ -699,37 +652,8 @@ export default function SkillsPage() {
           </h1>
           <p className="mt-1 text-sm text-zinc-600">{t("skills.subtitle")}</p>
         </div>
-        <div className="flex gap-2">
-          <button
-            type="button"
-            onClick={() => setPlaceholder(t("skills.upload"))}
-            title={t("skills.notice")}
-            className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-amber-300 bg-amber-50/50 px-4 py-2 text-xs font-medium text-amber-900 hover:bg-amber-50"
-          >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            {t("skills.upload_btn")}
-          </button>
-          <button
-            type="button"
-            onClick={() => setPlaceholder(t("skills.new"))}
-            title={t("skills.notice")}
-            className="inline-flex items-center gap-1.5 rounded-full border border-dashed border-amber-300 bg-amber-50/80 px-4 py-2 text-xs font-semibold text-amber-950 hover:bg-amber-100"
-          >
-            + {t("skills.new_btn")}
-          </button>
+        <div className="max-w-md rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs leading-relaxed text-zinc-600">
+          {t("skills.registry_note")}
         </div>
       </div>
 
@@ -842,7 +766,6 @@ export default function SkillsPage() {
           onSaveMeta={() => saveSkillMeta(selected)}
         />
       )}
-      {placeholder && <SkillPlaceholderModal title={placeholder} onClose={() => setPlaceholder(null)} />}
     </div>
   );
 }

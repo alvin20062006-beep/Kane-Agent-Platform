@@ -4,6 +4,7 @@ import json
 import os
 import time
 import threading
+from copy import deepcopy
 from pathlib import Path
 from typing import Any, Generic, TypeVar
 
@@ -35,6 +36,8 @@ class FileStore(Generic[T]):
         self.id_field = id_field
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = _lock_for_path(str(self.path))
+        self._cache_signature: tuple[int, int] | None = None
+        self._cache_raw: list[dict[str, Any]] | None = None
 
     def _normalize_raw(self, items: list[dict[str, Any]]) -> list[dict[str, Any]]:
         deduped: list[dict[str, Any]] = []
@@ -56,7 +59,13 @@ class FileStore(Generic[T]):
 
     def _read_raw_unlocked(self) -> list[dict[str, Any]]:
         if not self.path.exists():
+            self._cache_signature = None
+            self._cache_raw = []
             return []
+        stat = self.path.stat()
+        signature = (stat.st_mtime_ns, stat.st_size)
+        if self._cache_signature == signature and self._cache_raw is not None:
+            return deepcopy(self._cache_raw)
         last_err: Exception | None = None
         text = ""
         for attempt in range(8):
@@ -82,7 +91,10 @@ class FileStore(Generic[T]):
             self._write_raw(self._normalize_raw(data))
         if not isinstance(data, list):
             raise ValueError("Store data must be a JSON array.")
-        return self._normalize_raw(data)
+        normalized = self._normalize_raw(data)
+        self._cache_signature = signature
+        self._cache_raw = deepcopy(normalized)
+        return normalized
 
     def _read_raw(self) -> list[dict[str, Any]]:
         with self._lock:
@@ -107,6 +119,9 @@ class FileStore(Generic[T]):
                     time.sleep(0.05 * (attempt + 1))
             if last_err:
                 raise last_err
+            stat = self.path.stat()
+            self._cache_signature = (stat.st_mtime_ns, stat.st_size)
+            self._cache_raw = deepcopy(items)
 
     def list(self) -> list[T]:
         return [self.model.model_validate(x) for x in self._read_raw()]

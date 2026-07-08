@@ -3,11 +3,13 @@
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
-import { apiGet, apiPost } from "@/lib/api";
+import { apiDelete, apiGet, apiPost } from "@/lib/api";
 import { useT } from "@/lib/i18n/LocaleProvider";
 import type { ListResponse, MemoryItem } from "@/lib/octopus-types";
 
-type Tab = "approved" | "candidate" | "external";
+import { MemoryLedgerAuditPanel, RetrievalDebugPanel } from "./memory-audit-panels";
+
+type Tab = "approved" | "candidate" | "external" | "ledger" | "retrieval";
 
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
@@ -158,12 +160,19 @@ function MemoryCard({
             type="button"
             disabled={busy}
             onClick={() => {
-              if (!confirm(t("memory.confirm.delete"))) return;
+              if (
+                !confirm(
+                  [
+                    "Delete this memory item?",
+                    "This is a user-owned memory control action. It removes the current MemoryItem and records a user delete event in the ledger.",
+                    "Use purge only when you intentionally want broader memory removal.",
+                  ].join("\n\n")
+                )
+              ) {
+                return;
+              }
               handle(async () => {
-                await fetch(
-                  `${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"}/memory/${item.memory_id}`,
-                  { method: "DELETE" }
-                );
+                await apiDelete(`/memory/${item.memory_id}`);
                 onDelete();
               });
             }}
@@ -182,7 +191,9 @@ function MemoryPageInner() {
   const searchParams = useSearchParams();
   const initialTab = (() => {
     const v = searchParams.get("tab");
-    return v === "candidate" || v === "external" || v === "approved" ? (v as Tab) : "approved";
+    return v === "candidate" || v === "external" || v === "approved" || v === "ledger" || v === "retrieval"
+      ? (v as Tab)
+      : "approved";
   })();
 
   const [all, setAll] = useState<MemoryItem[]>([]);
@@ -222,6 +233,8 @@ function MemoryPageInner() {
     { id: "approved", label: t("memory.tab.approved"), count: approved.length },
     { id: "candidate", label: t("memory.tab.candidate"), count: candidates.length },
     { id: "external", label: t("memory.tab.external"), count: external.length },
+    { id: "ledger", label: "Ledger / Snapshot", count: 0 },
+    { id: "retrieval", label: "Retrieval Debug", count: 0 },
   ];
 
   const displayItems =
@@ -255,16 +268,18 @@ function MemoryPageInner() {
           </h1>
           <p className="mt-1 text-sm text-zinc-600">{t("memory.subtitle")}</p>
         </div>
-        <button
-          type="button"
-          onClick={handleExport}
-          className="shrink-0 rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
-        >
-          {t("memory.action.export_tab")}
-        </button>
+        {activeTab !== "ledger" && activeTab !== "retrieval" ? (
+          <button
+            type="button"
+            onClick={handleExport}
+            className="shrink-0 rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-600 hover:bg-zinc-50"
+          >
+            {t("memory.action.export_tab")}
+          </button>
+        ) : null}
       </div>
 
-      <div className="flex gap-1 border-b border-zinc-200">
+      <div className="flex flex-wrap gap-1 border-b border-zinc-200">
         {tabs.map((tab) => (
           <button
             key={tab.id}
@@ -294,32 +309,39 @@ function MemoryPageInner() {
         </div>
       )}
 
-      {loading && (
-        <div className="py-8 text-center text-sm text-zinc-400">
-          {t("common.loading")}
-        </div>
-      )}
-      {error && (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {t("memory.load_failed").replace("{err}", error)}
-        </div>
-      )}
-      {!loading && !error && displayItems.length === 0 && (
-        <div className="py-8 text-center text-sm text-zinc-400">{t("common.empty")}</div>
-      )}
-      {!loading && !error && displayItems.length > 0 && (
-        <div className="space-y-3">
-          {displayItems.map((item) => (
-            <MemoryCard
-              key={item.memory_id}
-              item={item}
-              onApprove={activeTab === "candidate" ? load : undefined}
-              onReject={activeTab === "candidate" ? load : undefined}
-              onDelete={load}
-            />
-          ))}
-        </div>
-      )}
+      {activeTab === "ledger" ? <MemoryLedgerAuditPanel /> : null}
+      {activeTab === "retrieval" ? <RetrievalDebugPanel /> : null}
+
+      {activeTab !== "ledger" && activeTab !== "retrieval" ? (
+        <>
+          {loading && (
+            <div className="py-8 text-center text-sm text-zinc-400">
+              {t("common.loading")}
+            </div>
+          )}
+          {error && (
+            <div className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+              {t("memory.load_failed").replace("{err}", error)}
+            </div>
+          )}
+          {!loading && !error && displayItems.length === 0 && (
+            <div className="py-8 text-center text-sm text-zinc-400">{t("common.empty")}</div>
+          )}
+          {!loading && !error && displayItems.length > 0 && (
+            <div className="space-y-3">
+              {displayItems.map((item) => (
+                <MemoryCard
+                  key={item.memory_id}
+                  item={item}
+                  onApprove={activeTab === "candidate" ? load : undefined}
+                  onReject={activeTab === "candidate" ? load : undefined}
+                  onDelete={load}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : null}
     </div>
   );
 }

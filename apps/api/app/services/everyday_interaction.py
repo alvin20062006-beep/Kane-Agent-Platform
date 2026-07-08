@@ -37,6 +37,7 @@ from .kanaloa_platform import (
     KANALOA_AGENT_ID,
     build_compact_snapshot_text,
 )
+from .memory_ledger import record_memory_item_event, user_delete_memory
 
 
 REPO_ROOT = Path(__file__).resolve().parents[4]
@@ -240,6 +241,7 @@ def _maybe_create_memory_candidate(
         created_at=_now_iso(),
     )
     memory_repo.upsert(item)
+    record_memory_item_event(item, event_type="candidate_created", created_by="ai")
     return item
 
 
@@ -368,7 +370,7 @@ def delete_conversation(conversation_id: str, delete_memory: bool = False) -> di
             continue
         if delete_memory:
             try:
-                memory_repo.delete(mem.memory_id)
+                user_delete_memory(mem.memory_id)
                 memory_touched += 1
             except Exception:
                 pass
@@ -376,6 +378,12 @@ def delete_conversation(conversation_id: str, delete_memory: bool = False) -> di
             try:
                 updated = mem.model_copy(update={"conversation_id": None})
                 memory_repo.upsert(updated)
+                record_memory_item_event(
+                    updated,
+                    event_type="user_rewritten",
+                    created_by="user",
+                    metadata={"reason": "conversation_deleted_reference_detached"},
+                )
                 memory_touched += 1
             except Exception:
                 pass
@@ -477,21 +485,21 @@ def promote_conversation_to_task(conversation_id: str, body: ConversationPromote
         correlation_id=task.correlation_id,
     )
 
-    memory_repo.upsert(
-        MemoryItem(
-            memory_id=new_id("mem"),
-            memory_type="task_context",
-            title=f"Task context for {task.title}",
-            content=description[:4000],
-            confidence=0.8,
-            status="approved",
-            source_type="conversation",
-            source_id=conversation.conversation_id,
-            scope_type="task",
-            scope_id=task.task_id,
-            tags=["promoted", conversation.agent_id],
-        )
+    memory = MemoryItem(
+        memory_id=new_id("mem"),
+        memory_type="task_context",
+        title=f"Task context for {task.title}",
+        content=description[:4000],
+        confidence=0.8,
+        status="approved",
+        source_type="conversation",
+        source_id=conversation.conversation_id,
+        scope_type="task",
+        scope_id=task.task_id,
+        tags=["promoted", conversation.agent_id],
     )
+    memory_repo.upsert(memory)
+    record_memory_item_event(memory, event_type="observed", created_by="ai")
     _append_message(
         conversation.conversation_id,
         "system",

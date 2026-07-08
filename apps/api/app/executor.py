@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from time import perf_counter
 from typing import Any
 
 import httpx
@@ -30,6 +31,37 @@ class ExecuteResult:
     error: str | None
     meta: dict[str, Any] | None = None
     pending_handoff: bool = False
+
+
+def _bridge_http_meta(
+    *,
+    url: str,
+    bridge_route: str,
+    timeout_seconds: float,
+    retry_limit: int,
+    attempt: int,
+    elapsed_ms: float | None = None,
+    status_code: int | None = None,
+    response_text: str | None = None,
+    error_type: str | None = None,
+) -> dict[str, Any]:
+    meta: dict[str, Any] = {
+        "url": url,
+        "bridge_route": bridge_route,
+        "timeout_seconds": timeout_seconds,
+        "retry_limit": retry_limit,
+        "attempt": attempt,
+        "attempts": attempt,
+    }
+    if elapsed_ms is not None:
+        meta["elapsed_ms"] = round(elapsed_ms, 2)
+    if status_code is not None:
+        meta["bridge_status_code"] = status_code
+    if response_text:
+        meta["bridge_response_excerpt"] = response_text[:2000]
+    if error_type:
+        meta["error_type"] = error_type
+    return meta
 
 
 def execute_builtin_octopus(task: Task, run: Run, agent: Agent) -> ExecuteResult:
@@ -171,20 +203,36 @@ def execute_via_local_bridge(task: Task, run: Run, agent: Agent) -> ExecuteResul
         headers["X-Octopus-Bridge-Key"] = secret
 
     last_error: str | None = None
+    last_meta: dict[str, Any] | None = None
     for attempt in range(retry_limit + 1):
+        attempt_no = attempt + 1
+        started = perf_counter()
         try:
             with httpx.Client(timeout=timeout_seconds) as client:
                 r = client.post(url, json=payload, headers=headers)
+                elapsed_ms = (perf_counter() - started) * 1000
+                response_text = r.text if r.text else None
+                bridge_meta = _bridge_http_meta(
+                    url=url,
+                    bridge_route=bridge_route,
+                    timeout_seconds=timeout_seconds,
+                    retry_limit=retry_limit,
+                    attempt=attempt_no,
+                    elapsed_ms=elapsed_ms,
+                    status_code=r.status_code,
+                    response_text=response_text,
+                )
                 if r.status_code >= 500 and attempt < retry_limit:
                     last_error = f"bridge_http_{r.status_code}"
+                    last_meta = bridge_meta
                     continue
                 if r.status_code >= 400:
                     return ExecuteResult(
                         integration_path="local_bridge_http",
                         ok=False,
-                        output=r.text[:8000] if r.text else None,
+                        output=response_text[:8000] if response_text else None,
                         error=f"bridge_http_{r.status_code}",
-                        meta={"url": url, "timeout_seconds": timeout_seconds, "retry_limit": retry_limit},
+                        meta=bridge_meta,
                     )
                 data = r.json()
                 ok = bool(data.get("ok", False))
@@ -203,11 +251,26 @@ def execute_via_local_bridge(task: Task, run: Run, agent: Agent) -> ExecuteResul
                         **{k: v for k, v in data.items() if k not in ("ok", "output", "error", "integration_path")},
                         "timeout_seconds": timeout_seconds,
                         "retry_limit": retry_limit,
+                        "attempt": attempt_no,
+                        "attempts": attempt_no,
+                        "bridge_status_code": r.status_code,
+                        "elapsed_ms": round(elapsed_ms, 2),
+                        "url": url,
+                        "bridge_route": bridge_route,
                     },
                     pending_handoff=pending and ok,
                 )
         except Exception as e:  # noqa: BLE001
             last_error = str(e)
+            last_meta = _bridge_http_meta(
+                url=url,
+                bridge_route=bridge_route,
+                timeout_seconds=timeout_seconds,
+                retry_limit=retry_limit,
+                attempt=attempt_no,
+                elapsed_ms=(perf_counter() - started) * 1000,
+                error_type=type(e).__name__,
+            )
             if attempt >= retry_limit:
                 break
     return ExecuteResult(
@@ -216,6 +279,7 @@ def execute_via_local_bridge(task: Task, run: Run, agent: Agent) -> ExecuteResul
         output=None,
         error=last_error,
         meta={
+            **(last_meta or {}),
             "url": url,
             "hint": "Start Local Bridge: apps/local-bridge (port 8010 default)",
             "timeout_seconds": timeout_seconds,

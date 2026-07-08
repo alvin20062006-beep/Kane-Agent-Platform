@@ -1,6 +1,6 @@
-# 本地多 Agent 操控台 — 用户指南（v1.1）
+# 本地多 Agent 操控台 — 用户指南（v2.0）
 
-面向**使用**章鱼平台（非仅阅读代码）的说明：各入口做什么、四类外部/本地 Agent 怎么接、怎么试跑与排障。技术细节与 API 列表另见 [`docs/EXTERNAL_AGENT_INTEGRATION.md`](docs/EXTERNAL_AGENT_INTEGRATION.md)、[`docs/API_ROUTE_INVENTORY.md`](docs/API_ROUTE_INVENTORY.md)。v1.1 边界见 [`docs/V1.1_LIMITATIONS.md`](docs/V1.1_LIMITATIONS.md)。
+面向**使用**章鱼平台（非仅阅读代码）的说明：各入口做什么、四类外部/本地 Agent 怎么接、怎么试跑与排障。技术细节与 API 列表另见 [`docs/EXTERNAL_AGENT_INTEGRATION.md`](docs/EXTERNAL_AGENT_INTEGRATION.md)、[`docs/API_ROUTE_INVENTORY.md`](docs/API_ROUTE_INVENTORY.md)。v2.0 边界以当前 Agent OS Foundation 文档为准。
 
 ---
 
@@ -15,7 +15,7 @@
 | **`/cockpit`** | 操控舱：从对话式入口 **发起工作** | 创建任务、走分配/运行（与任务流联动） | **发任务**（入口之一） |
 | **`/tasks`** | **任务列表与创建** | 新建任务、查看状态、点进详情看时间线与输出 | **发任务** + **查看状态** |
 | **`/settings`** | 全局设置：API Profile、通知摘要等 | 配置模型与密钥、跳到通知全页 | **配置环境**（偏账户/模型，非单 Agent 适配器） |
-| **`/notifications`** | 通知频道列表与管理 | 查看渠道、启用/禁用（v1.1 能力边界内） | **查看状态**（通知侧） |
+| **`/notifications`** | 通知频道列表与管理 | 查看渠道、启用/禁用（v2.0 能力边界内） | **查看状态**（通知侧） |
 
 **记忆口诀**：加人去 **`/agents/add`**，编队看 **`/agent-fleet`**，改一个人去 **`/agent-fleet/[id]`**，Bridge 不通先 **`/local-bridge`**，干活主 **`/tasks`** 或 **`/cockpit`**。
 
@@ -28,8 +28,8 @@
 - **在平台里从哪里添加**：**`/agents/add`** → 选择 OpenClaw 相关模板 → 填 **Agent ID**、适配器/登记信息 → 提交。
 - **要配哪些字段**：至少 **唯一 Agent ID**；其余按表单与页面上的「诚实说明」— Webhook 依赖 Bridge 环境，不是单靠浏览器里一行字就能替代。
 - **怎么测试是否接通**：保存后打开 **`/agent-fleet/[id]`** → 使用 **测试连接 / 试跑**；成功则任务状态会推进并能看到结果摘要；若只显示等待/handoff，按页面提示检查 Webhook 与 callback。
-- **目前能做到什么**：在 v1.1 内完成 **登记、试跑、状态观测**；Webhook 路径在环境齐时可 **自动出队**。
-- **当前限制**：未配置 Webhook 时 **不会**假装已全自动；多租户隔离、生产级安全与 SLA 不在 v1.1 承诺内。
+- **目前能做到什么**：在 v2.0 内完成 **登记、试跑、状态观测**；Webhook 路径在环境齐时可 **自动出队**。
+- **当前限制**：未配置 Webhook 时 **不会**假装已全自动；多租户隔离、生产级安全与 SLA 不在 v2.0 承诺内。
 
 ---
 

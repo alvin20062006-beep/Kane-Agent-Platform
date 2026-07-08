@@ -1,3 +1,3 @@
 """Platform release version (API + Web + Bridge aligned)."""
 
-PLATFORM_VERSION = "1.1.0"
+PLATFORM_VERSION = "2.0.0"

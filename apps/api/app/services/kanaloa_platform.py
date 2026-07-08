@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+from time import perf_counter
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -98,6 +99,12 @@ KANALOA_READONLY_SCOPES: list[str] = [
 
 # Back-compat alias for imports expecting “default” = owner.
 KANALOA_DEFAULT_SCOPES = KANALOA_OWNER_SCOPES
+
+
+def _profile_mark(phases: list[dict[str, Any]], name: str, phase_started: float) -> float:
+    now = perf_counter()
+    phases.append({"name": name, "ms": round((now - phase_started) * 1000, 2)})
+    return now
 
 
 def scopes_for_permission_profile(profile: str) -> list[str]:
@@ -451,14 +458,22 @@ def build_cursor_status(probe: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def build_adapters_status_payload() -> dict[str, Any]:
-    probe = probe_local_bridge_detailed()
+def build_adapters_status_payload(*, bridge_probe: dict[str, Any] | None = None) -> dict[str, Any]:
+    started = perf_counter()
+    phases: list[dict[str, Any]] = []
+    phase_started = perf_counter()
+    probe = bridge_probe if bridge_probe is not None else probe_local_bridge_detailed()
+    phase_started = _profile_mark(phases, "probe_local_bridge", phase_started)
     cc = build_claude_code_status(probe)
+    phase_started = _profile_mark(phases, "claude_code_status", phase_started)
     cx = build_codex_status(probe)
+    phase_started = _profile_mark(phases, "codex_status", phase_started)
     cu = build_cursor_status(probe)
+    phase_started = _profile_mark(phases, "cursor_status", phase_started)
     openclaw_url = get_openclaw_webhook_url()
     ob = probe.get("bridge_status") or {}
     openclaw_configured = bool(openclaw_url) or bool(ob.get("openclaw_configured"))
+    phase_started = _profile_mark(phases, "openclaw_status", phase_started)
 
     return {
         "local_bridge": {
@@ -483,6 +498,7 @@ def build_adapters_status_payload() -> dict[str, Any]:
             ),
         },
         "_schema": "adapters_status_v1",
+        "_profile": {"total_ms": round((perf_counter() - started) * 1000, 2), "phases": phases},
     }
 
 
@@ -519,11 +535,17 @@ def build_agent_registry_entries() -> list[dict[str, Any]]:
 
 
 def build_capabilities_payload() -> dict[str, Any]:
+    started = perf_counter()
+    phases: list[dict[str, Any]] = []
+    phase_started = perf_counter()
     probe = probe_local_bridge_detailed()
-    adapters_status = build_adapters_status_payload()
-    api_version = "1.1.0"
+    phase_started = _profile_mark(phases, "probe_local_bridge", phase_started)
+    adapters_status = build_adapters_status_payload(bridge_probe=probe)
+    phase_started = _profile_mark(phases, "build_adapters_status", phase_started)
+    api_version = "2.0.0"
     perm_profile = get_kane_permission_profile()
     eff_scopes = scopes_for_permission_profile(perm_profile)
+    phase_started = _profile_mark(phases, "permissions", phase_started)
 
     agents_min = []
     for row in build_agent_registry_entries():
@@ -535,6 +557,11 @@ def build_capabilities_payload() -> dict[str, Any]:
                 "enabled": row["enabled"],
             }
         )
+    phase_started = _profile_mark(phases, "agent_registry", phase_started)
+    safe_tools = _safe_skill_tools()
+    phase_started = _profile_mark(phases, "safe_skill_tools", phase_started)
+    internal_tools = _internal_tools_catalog()
+    phase_started = _profile_mark(phases, "internal_tools", phase_started)
 
     return {
         "platform": {
@@ -548,11 +575,11 @@ def build_capabilities_payload() -> dict[str, Any]:
             "role": "orchestrator_agent",
             "permission_profile": perm_profile,
             "permissions": eff_scopes,
-            "tools": _internal_tools_catalog(),
+            "tools": internal_tools,
             "llm_configured": is_llm_configured(),
         },
         "agents": agents_min,
-        "tools": _safe_skill_tools() + _internal_tools_catalog(),
+        "tools": safe_tools + internal_tools,
         "adapters": _adapter_registry_static(),
         "mcpServers": [],
         "tasks": {"enabled": True},
@@ -569,6 +596,7 @@ def build_capabilities_payload() -> dict[str, Any]:
             "probed_at": probe.get("probed_at"),
         },
         "_schema": "capabilities_v1",
+        "_profile": {"total_ms": round((perf_counter() - started) * 1000, 2), "phases": phases},
     }
 
 

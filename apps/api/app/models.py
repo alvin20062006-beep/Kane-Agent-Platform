@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 class ListResponse(BaseModel):
     """List endpoints: persisted file/DB data."""
 
-    version: str = "1.1.0"
+    version: str = "2.0.0"
     note: str | None = None
     items: list[Any] = Field(default_factory=list)
     # Phase 5 pagination metadata (optional; null on un-paginated responses).
@@ -229,6 +229,140 @@ class MemoryItem(BaseModel):
     task_id: str | None = None             # 关联任务（可选）
     conversation_id: str | None = None     # 关联会话（可选）
     created_at: str | None = None          # 写入时间戳
+
+
+class MemoryEvent(BaseModel):
+    event_id: str
+    memory_id: str | None = None
+    event_type: Literal[
+        "observed",
+        "candidate_created",
+        "task_result_recorded",
+        "decision_recorded",
+        "preference_recorded",
+        "skill_result_recorded",
+        "failure_recorded",
+        "verification_recorded",
+        "snapshot_created",
+        "superseded",
+        "invalidated",
+        "user_approved",
+        "user_rejected",
+        "user_deleted",
+        "user_rewritten",
+        "user_purged",
+        "exported",
+        "migrated",
+    ]
+    subject_key: str | None = None
+    scope_type: str | None = None
+    scope_id: str | None = None
+    source_type: str | None = None
+    source_id: str | None = None
+    run_id: str | None = None
+    run_step_id: str | None = None
+    task_id: str | None = None
+    conversation_id: str | None = None
+    skill_id: str | None = None
+    decision_id: str | None = None
+    failure_id: str | None = None
+    content_json: dict[str, Any] = Field(default_factory=dict)
+    value_json: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: list[str] = Field(default_factory=list)
+    confidence: float | None = None
+    policy_result: dict[str, Any] | None = None
+    supersedes_event_id: str | None = None
+    invalidates_event_id: str | None = None
+    created_by: Literal["ai", "user", "system"] = "ai"
+    created_at: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MemoryIndexEntry(BaseModel):
+    index_id: str
+    memory_id: str
+    subject_key: str | None = None
+    status: Literal["candidate", "active", "rejected", "superseded", "invalidated", "deleted", "purged"] = "candidate"
+    memory_type: str | None = None
+    title: str | None = None
+    scope_type: str | None = None
+    scope_id: str | None = None
+    source_type: str | None = None
+    source_id: str | None = None
+    latest_event_id: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    updated_at: str
+    value_json: dict[str, Any] = Field(default_factory=dict)
+
+
+class ActiveMemorySnapshot(BaseModel):
+    snapshot_id: str
+    scope_type: str = "global"
+    scope_id: str = "default"
+    memory_ids: list[str] = Field(default_factory=list)
+    event_ids: list[str] = Field(default_factory=list)
+    value_json: dict[str, Any] = Field(default_factory=dict)
+    updated_at: str
+
+
+MemoryCompilerCandidateType = Literal[
+    "task_result_recorded",
+    "decision_recorded",
+    "skill_result_recorded",
+    "failure_recorded",
+    "verification_recorded",
+    "superseded",
+    "invalidated",
+]
+MemoryCompilerCandidateStatus = Literal["proposed", "committed", "rejected", "skipped"]
+
+
+class MemoryCompilerRun(BaseModel):
+    compiler_run_id: str
+    scope_type: Literal["run", "task"]
+    scope_id: str
+    run_id: str | None = None
+    task_id: str | None = None
+    dry_run: bool = True
+    status: Literal["completed", "failed"] = "completed"
+    policy_name: str = "default_conservative"
+    candidates_created: int = 0
+    candidates_committed: int = 0
+    started_at: str
+    finished_at: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MemoryCompilerCandidate(BaseModel):
+    candidate_id: str
+    compiler_run_id: str
+    candidate_type: MemoryCompilerCandidateType
+    status: MemoryCompilerCandidateStatus = "proposed"
+    memory_id: str | None = None
+    subject_key: str
+    scope_type: str | None = None
+    scope_id: str | None = None
+    source_type: str | None = None
+    source_id: str | None = None
+    run_id: str | None = None
+    run_step_id: str | None = None
+    task_id: str | None = None
+    conversation_id: str | None = None
+    skill_id: str | None = None
+    decision_id: str | None = None
+    failure_id: str | None = None
+    content_json: dict[str, Any] = Field(default_factory=dict)
+    value_json: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: list[str] = Field(default_factory=list)
+    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    policy_result: dict[str, Any] = Field(default_factory=dict)
+    supersedes_event_id: str | None = None
+    invalidates_event_id: str | None = None
+    fingerprint: str
+    committed_event_id: str | None = None
+    created_at: str
+    committed_at: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class ConversationStatus(str, Enum):
@@ -605,6 +739,170 @@ class Run(BaseModel):
     claim_token: str | None = None
 
 
+class RunStep(BaseModel):
+    run_step_id: str
+    run_id: str
+    task_id: str
+    sequence: int
+    step_type: Literal["plan", "execute", "summarize", "other"]
+    status: Literal["pending", "running", "succeeded", "failed", "blocked", "skipped"] = "pending"
+    title: str | None = None
+    parent_step_id: str | None = None
+    agent_id: str | None = None
+    skill_id: str | None = None
+    tool_call_id: str | None = None
+    decision_id: str | None = None
+    failure_id: str | None = None
+    input_context_ref: str | None = None
+    output_ref: str | None = None
+    verification_ref: str | None = None
+    repair_ref: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    memory_event_refs: list[str] = Field(default_factory=list)
+    retry_count: int = 0
+    retry_history: list[dict[str, Any]] = Field(default_factory=list)
+    latest_failure_type: str | None = None
+    attempt_index: int = 1
+    created_at: str
+    updated_at: str | None = None
+    started_at: str | None = None
+    completed_at: str | None = None
+    correlation_id: str | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+VerifierType = Literal["code", "docs", "security", "bridge", "manual"]
+VerifierStatus = Literal["passed", "failed", "blocked", "skipped"]
+
+
+class VerifierResult(BaseModel):
+    result_id: str
+    run_id: str
+    run_step_id: str
+    task_id: str
+    verifier_type: VerifierType
+    status: VerifierStatus
+    passed: bool = False
+    findings: list[str] = Field(default_factory=list)
+    command_key: str | None = None
+    check_key: str | None = None
+    output_summary: str | None = None
+    error_summary: str | None = None
+    evidence_refs: list[str] = Field(default_factory=list)
+    created_at: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _passed_requires_passed_status(self) -> "VerifierResult":
+        if self.passed and self.status != "passed":
+            raise ValueError("passed_true_requires_status_passed")
+        return self
+
+
+FailureType = Literal[
+    "validation_error",
+    "permission_denied",
+    "bridge_timeout",
+    "api_unreachable",
+    "tool_execution_failed",
+    "verification_failed",
+    "user_cancelled",
+    "unknown",
+]
+RepairAttemptKind = Literal["retry", "repair", "trace_rollback"]
+RepairStatus = Literal[
+    "proposed",
+    "approved",
+    "running",
+    "succeeded",
+    "failed",
+    "blocked",
+    "skipped",
+    "rollback_proposed",
+    "rollback_completed",
+    "rollback_failed",
+]
+RepairAction = Literal[
+    "retry_same_inputs",
+    "adjust_prompt",
+    "switch_tool",
+    "switch_agent",
+    "change_strategy",
+    "trace_rollback",
+    "manual_review",
+]
+SafetyStatus = Literal["allowed", "needs_user_confirmation", "blocked"]
+
+
+class RepairAttempt(BaseModel):
+    repair_attempt_id: str
+    run_id: str
+    run_step_id: str
+    task_id: str
+    verifier_result_id: str
+    failure_id: str | None = None
+    failure_ref: str | None = None
+    failure_type: FailureType = "unknown"
+    attempt_index: int
+    attempt_kind: RepairAttemptKind = "repair"
+    status: RepairStatus
+    repair_action: RepairAction
+    action_key: str | None = None
+    repair_key: str | None = None
+    loop_event: str | None = None
+    needs_user_confirmation: bool = False
+    high_risk: bool = False
+    safety_status: SafetyStatus = "allowed"
+    evidence_refs: list[str] = Field(default_factory=list)
+    created_at: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+ReferenceRole = Literal[
+    "architect_reviewer",
+    "implementation_reviewer",
+    "security_reviewer",
+    "test_reviewer",
+    "docs_reviewer",
+]
+
+
+class ReferenceCandidate(BaseModel):
+    candidate_id: str
+    run_id: str
+    run_step_id: str
+    task_id: str
+    agent_role: ReferenceRole
+    summary: str
+    risks: list[str] = Field(default_factory=list)
+    recommended_plan: list[str] = Field(default_factory=list)
+    files_to_touch: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    evidence_refs: list[str] = Field(default_factory=list)
+    status: Literal["proposed", "selected", "rejected"] = "proposed"
+    created_at: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class AggregatorDecision(BaseModel):
+    aggregation_id: str
+    run_id: str
+    run_step_id: str
+    task_id: str
+    candidates_considered: list[str] = Field(default_factory=list)
+    selected_plan: list[str] = Field(default_factory=list)
+    rejected_candidates: list[dict[str, Any]] = Field(default_factory=list)
+    consensus: str
+    conflicts: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    known_gaps: list[str] = Field(default_factory=list)
+    verifier_requirements: list[str] = Field(default_factory=list)
+    requires_user_confirmation: bool = False
+    evidence_refs: list[str] = Field(default_factory=list)
+    created_at: str
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 class RunLogLine(BaseModel):
     log_id: str
     run_id: str
@@ -841,6 +1139,173 @@ class ConversationPromoteBody(BaseModel):
     title: str | None = Field(default=None, max_length=500)
     execution_mode: Literal["commander", "pilot", "direct_agent"] = "commander"
     assign_agent: bool = True
+
+
+class MemoryEventAppendBody(BaseModel):
+    event_type: Literal[
+        "observed",
+        "candidate_created",
+        "task_result_recorded",
+        "decision_recorded",
+        "preference_recorded",
+        "skill_result_recorded",
+        "failure_recorded",
+        "verification_recorded",
+        "snapshot_created",
+        "superseded",
+        "invalidated",
+        "exported",
+        "migrated",
+    ] = "observed"
+    memory_id: str | None = Field(default=None, max_length=200)
+    subject_key: str | None = Field(default=None, max_length=500)
+    scope_type: str | None = Field(default=None, max_length=100)
+    scope_id: str | None = Field(default=None, max_length=200)
+    source_type: str | None = Field(default=None, max_length=100)
+    source_id: str | None = Field(default=None, max_length=200)
+    run_id: str | None = Field(default=None, max_length=200)
+    run_step_id: str | None = Field(default=None, max_length=200)
+    task_id: str | None = Field(default=None, max_length=200)
+    conversation_id: str | None = Field(default=None, max_length=200)
+    skill_id: str | None = Field(default=None, max_length=200)
+    decision_id: str | None = Field(default=None, max_length=200)
+    failure_id: str | None = Field(default=None, max_length=200)
+    content_json: dict[str, Any] = Field(default_factory=dict)
+    value_json: dict[str, Any] = Field(default_factory=dict)
+    evidence_refs: list[str] = Field(default_factory=list)
+    confidence: float | None = None
+    policy_result: dict[str, Any] | None = None
+    supersedes_event_id: str | None = Field(default=None, max_length=200)
+    invalidates_event_id: str | None = Field(default=None, max_length=200)
+    created_by: Literal["ai", "user", "system"] = "user"
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MemoryRewriteBody(BaseModel):
+    title: str | None = Field(default=None, max_length=500)
+    content: str | None = Field(default=None, max_length=20000)
+    status: Literal["candidate", "approved", "rejected"] | None = None
+    tags: list[str] | None = None
+    reason: str | None = Field(default=None, max_length=1000)
+
+
+class MemoryPurgeBody(BaseModel):
+    confirm: bool = False
+    memory_ids: list[str] | None = None
+    include_ledger: bool = False
+    reason: str | None = Field(default=None, max_length=1000)
+
+
+class MemoryExactRetrievalBody(BaseModel):
+    key_type: Literal[
+        "subject_key",
+        "task_id",
+        "run_id",
+        "event_id",
+        "memory_id",
+        "skill_id",
+        "decision_id",
+        "failure_id",
+        "conversation_id",
+    ]
+    key: str = Field(min_length=1, max_length=500)
+    limit: int = Field(default=20, ge=1, le=50)
+    max_chars: int = Field(default=20000, ge=1000, le=50000)
+
+
+class MemoryEvidenceSearchBody(BaseModel):
+    query: str = Field(min_length=1, max_length=2000)
+    sources: list[
+        Literal[
+            "workspace",
+            "raw_logs",
+            "conversation_logs",
+            "task_logs",
+            "evidence",
+            "summaries",
+            "memory_events",
+            "run_logs",
+            "skills",
+            "decisions",
+            "failures",
+        ]
+    ] | None = None
+    limit: int = Field(default=12, ge=1, le=50)
+    max_chars: int = Field(default=12000, ge=1000, le=50000)
+
+
+class MemoryRuntimeContextBody(BaseModel):
+    query: str | None = Field(default=None, max_length=2000)
+    task_id: str | None = Field(default=None, max_length=200)
+    run_id: str | None = Field(default=None, max_length=200)
+    conversation_id: str | None = Field(default=None, max_length=200)
+    evidence_limit: int = Field(default=8, ge=1, le=25)
+    max_chars: int = Field(default=12000, ge=1000, le=50000)
+
+
+class MemoryCompilerRunCreateBody(BaseModel):
+    run_id: str | None = Field(default=None, max_length=200)
+    task_id: str | None = Field(default=None, max_length=200)
+    dry_run: bool = True
+    max_candidates: int = Field(default=20, ge=1, le=100)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class MemoryCompilerCandidateCommitBody(BaseModel):
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ReferenceCandidateCreateBody(BaseModel):
+    run_step_id: str = Field(min_length=1, max_length=200)
+    agent_role: ReferenceRole
+    summary: str = Field(min_length=1, max_length=10000)
+    risks: list[str] = Field(default_factory=list)
+    recommended_plan: list[str] = Field(default_factory=list)
+    files_to_touch: list[str] = Field(default_factory=list)
+    confidence: float = Field(default=0.0, ge=0.0, le=1.0)
+    evidence_refs: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class ReferenceAggregationCreateBody(BaseModel):
+    run_step_id: str = Field(min_length=1, max_length=200)
+    candidate_ids: list[str] | None = None
+    requires_user_confirmation: bool | None = None
+    known_gaps: list[str] | None = None
+    verifier_requirements: list[str] | None = None
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class VerifierResultCreateBody(BaseModel):
+    run_step_id: str = Field(min_length=1, max_length=200)
+    verifier_type: VerifierType
+    status: VerifierStatus
+    passed: bool | None = None
+    findings: list[str] = Field(default_factory=list)
+    command_key: str | None = Field(default=None, max_length=200)
+    check_key: str | None = Field(default=None, max_length=200)
+    output_summary: str | None = Field(default=None, max_length=10000)
+    error_summary: str | None = Field(default=None, max_length=10000)
+    evidence_refs: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
+
+
+class RepairAttemptCreateBody(BaseModel):
+    run_step_id: str = Field(min_length=1, max_length=200)
+    verifier_result_id: str = Field(min_length=1, max_length=200)
+    failure_id: str | None = Field(default=None, max_length=200)
+    failure_ref: str | None = Field(default=None, max_length=300)
+    failure_type: FailureType = "unknown"
+    attempt_kind: RepairAttemptKind = "repair"
+    status: RepairStatus = "proposed"
+    repair_action: RepairAction
+    action_key: str | None = Field(default=None, max_length=200)
+    repair_key: str | None = Field(default=None, max_length=200)
+    needs_user_confirmation: bool = False
+    high_risk: bool = False
+    user_confirmed: bool = False
+    evidence_refs: list[str] = Field(default_factory=list)
+    metadata: dict[str, Any] = Field(default_factory=dict)
 
 
 class TaskAssignBody(BaseModel):

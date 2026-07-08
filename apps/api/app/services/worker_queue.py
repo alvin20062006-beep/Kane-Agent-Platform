@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from ..executor import execute_builtin_octopus, execute_via_local_bridge
+from ..executor import ExecuteResult, execute_builtin_octopus, execute_via_local_bridge
 from ..fsm import TaskEvent
 from ..id_utils import new_id
 from ..models import AgentStatus, Run, Task, TaskStatus
@@ -25,6 +25,8 @@ from .runtime_audit import (
     now_iso,
     resolve_parent_run_id,
 )
+from .run_steps import complete_run_timeline, ensure_base_run_steps, mark_run_step
+from .task_status_reconciliation import reconcile_task_with_run
 
 
 def _now_iso() -> str:
@@ -154,6 +156,7 @@ def enqueue_run(task_id: str, agent_id: str) -> Run:
         input_snapshot=build_run_input_snapshot(task),
     )
     runs_repo.upsert(run)
+    ensure_base_run_steps(run)
     tasks_repo.upsert(task.model_copy(update={"last_run_id": run_id, "updated_at": _now_iso()}))
     start_worker_thread()
     _append_event(
@@ -244,7 +247,47 @@ def _dispatchable_pending_runs() -> list[Run]:
     return selected
 
 
+def _is_queue_timed_out(run: Run) -> bool:
+    if not run.queued_at:
+        return False
+    try:
+        queued_at = datetime.fromisoformat(run.queued_at.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    return datetime.now(tz=timezone.utc) - queued_at > timedelta(minutes=10)
+
+
+def _expire_stale_pending_runs() -> None:
+    for run in runs_repo.list():
+        if run.status != "pending" or not _is_queue_timed_out(run):
+            continue
+        failed_run = run.model_copy(update={"status": "failed", "finished_at": _now_iso(), "error": "queue_timeout"})
+        runs_repo.upsert(failed_run)
+        complete_run_timeline(run.run_id, succeeded=False)
+        task = tasks_repo.get(run.task_id)
+        if not task:
+            continue
+        if task.last_run_id == run.run_id and task.status in {TaskStatus.queued, TaskStatus.assigned, TaskStatus.running}:
+            failed_task = task.model_copy(update={"status": TaskStatus.failed, "last_error": "queue_timeout", "updated_at": _now_iso()})
+            tasks_repo.upsert(failed_task)
+            _append_event(task.task_id, "task_failed", "Task failed: queue timeout", {"run_id": run.run_id})
+            append_watchdog_issue(
+                "task_worker_stalled",
+                f"Queued run {run.run_id} exceeded the worker queue timeout",
+                severity="warn",
+                task=failed_task,
+                agent_id=run.agent_id or task.assigned_agent_id,
+                run_id=run.run_id,
+                raw_error="queue_timeout",
+                source="watchdog",
+                issue_status="open",
+                suggested_action="retry_run",
+                recovery_hint="Retry after confirming the assigned agent is available.",
+            )
+
+
 def _dispatch_pending_runs() -> None:
+    _expire_stale_pending_runs()
     dispatchable = _dispatchable_pending_runs()
     for run in dispatchable:
         _start_run_execution(run.run_id)
@@ -293,18 +336,22 @@ def _execute_run(run_id: str) -> None:
         task = tasks_repo.get(run.task_id)
         if not task:
             runs_repo.upsert(run.model_copy(update={"status": "failed", "finished_at": _now_iso(), "error": "task_not_found"}))
+            complete_run_timeline(run.run_id, succeeded=False)
             return
         task = ensure_task_correlation(task)
         agent_id = run.agent_id or task.assigned_agent_id
         if not agent_id:
             runs_repo.upsert(run.model_copy(update={"status": "failed", "finished_at": _now_iso(), "error": "task_not_assigned"}))
+            complete_run_timeline(run.run_id, succeeded=False)
             return
         agent = agents_repo.get(agent_id)
         if not agent:
             runs_repo.upsert(run.model_copy(update={"status": "failed", "finished_at": _now_iso(), "error": "agent_not_found"}))
+            complete_run_timeline(run.run_id, succeeded=False)
             return
         if not getattr(agent, "enabled", True):
             runs_repo.upsert(run.model_copy(update={"status": "failed", "finished_at": _now_iso(), "error": "agent_disabled"}))
+            complete_run_timeline(run.run_id, succeeded=False)
             _append_event(task.task_id, "task_failed", "Task failed: assigned agent is disabled", {"run_id": run.run_id})
             tasks_repo.upsert(task.model_copy(update={"status": TaskStatus.failed, "last_error": "agent_disabled", "updated_at": _now_iso()}))
             return
@@ -314,6 +361,7 @@ def _execute_run(run_id: str) -> None:
                 queued_at = datetime.fromisoformat(run.queued_at.replace("Z", "+00:00"))
                 if datetime.now(tz=timezone.utc) - queued_at > timedelta(minutes=10):
                     runs_repo.upsert(run.model_copy(update={"status": "failed", "finished_at": _now_iso(), "error": "queue_timeout"}))
+                    complete_run_timeline(run.run_id, succeeded=False)
                     _append_event(task.task_id, "task_failed", "Task failed: queue timeout", {"run_id": run.run_id})
                     failed_task = task.model_copy(update={"status": TaskStatus.failed, "last_error": "queue_timeout", "updated_at": _now_iso()})
                     tasks_repo.upsert(failed_task)
@@ -358,10 +406,24 @@ def _execute_run(run_id: str) -> None:
             "Run started (worker)",
             {"agent_id": agent.agent_id, "queue_priority": task.queue_priority, "claim_token": run2.claim_token},
         )
+        mark_run_step(run2.run_id, "execute", "running", agent_id=agent.agent_id)
         agents_repo.upsert(agent.model_copy(update={"status": AgentStatus.running, "last_heartbeat_at": _now_iso()}))
 
         adapter = agent.adapter_id or ("builtin_octopus" if agent.type == "builtin" else "unknown")
-        res = execute_builtin_octopus(task, run2, agent) if agent.type == "builtin" or adapter == "builtin_octopus" else execute_via_local_bridge(task, run2, agent)
+        try:
+            res = (
+                execute_builtin_octopus(task, run2, agent)
+                if agent.type == "builtin" or adapter == "builtin_octopus"
+                else execute_via_local_bridge(task, run2, agent)
+            )
+        except Exception as exc:  # noqa: BLE001
+            res = ExecuteResult(
+                integration_path="worker_execution_exception",
+                ok=False,
+                output=None,
+                error=str(exc),
+                meta={"error_type": type(exc).__name__, "adapter_id": adapter},
+            )
         _append_run_log(run2.run_id, 3, "info", f"integration_path={res.integration_path}", res.meta)
 
         latest_run = runs_repo.get(run2.run_id) or run2
@@ -369,37 +431,43 @@ def _execute_run(run_id: str) -> None:
         # External callbacks can complete the run while the worker is still
         # unwinding the handoff path. If final state is already persisted,
         # keep that authoritative result instead of writing stale handoff data.
-        if latest_run.status in {"succeeded", "failed"} or latest_task.status in {TaskStatus.succeeded, TaskStatus.failed}:
+        if latest_run.status in {"succeeded", "failed"}:
+            complete_run_timeline(latest_run.run_id, succeeded=latest_run.status == "succeeded")
+            reconcile_task_with_run(latest_task, latest_run, source="worker_existing_terminal_run")
+            agents_repo.upsert(agent.model_copy(update={"status": AgentStatus.idle, "last_heartbeat_at": _now_iso()}))
+            return
+        if latest_task.status in {TaskStatus.succeeded, TaskStatus.failed}:
+            complete_run_timeline(run2.run_id, succeeded=latest_task.status == TaskStatus.succeeded)
             agents_repo.upsert(agent.model_copy(update={"status": AgentStatus.idle, "last_heartbeat_at": _now_iso()}))
             return
 
         if res.ok and res.pending_handoff:
-            runs_repo.upsert(
-                latest_run.model_copy(
-                    update={
-                        "status": "running",
-                        "finished_at": None,
-                        "integration_path": res.integration_path,
-                        "output_excerpt": (res.output or "")[:4000],
-                        "error": None,
-                        "environment_summary": build_environment_summary(task, agent, integration_path=res.integration_path),
-                        "output_snapshot": {
-                            "status": "pending_handoff",
-                            "output": (res.output or "")[:4000],
-                        },
-                    }
-                )
+            handoff_run = latest_run.model_copy(
+                update={
+                    "status": "running",
+                    "finished_at": None,
+                    "integration_path": res.integration_path,
+                    "output_excerpt": (res.output or "")[:4000],
+                    "error": None,
+                    "environment_summary": build_environment_summary(task, agent, integration_path=res.integration_path),
+                    "output_snapshot": {
+                        "status": "pending_handoff",
+                        "output": (res.output or "")[:4000],
+                    },
+                }
             )
-            tasks_repo.upsert(
-                latest_task.model_copy(
-                    update={
-                        "status": TaskStatus.waiting_approval,
-                        "result_summary": (res.output or "")[:2000],
-                        "result_payload": {"integration_path": res.integration_path, "pending_handoff": True, "meta": res.meta},
-                        "updated_at": _now_iso(),
-                    }
-                )
+            runs_repo.upsert(handoff_run)
+            complete_run_timeline(run2.run_id, succeeded=True)
+            handoff_task = latest_task.model_copy(
+                update={
+                    "status": TaskStatus.waiting_approval,
+                    "result_summary": (res.output or "")[:2000],
+                    "result_payload": {"integration_path": res.integration_path, "pending_handoff": True, "meta": res.meta},
+                    "updated_at": _now_iso(),
+                }
             )
+            tasks_repo.upsert(handoff_task)
+            reconcile_task_with_run(handoff_task, handoff_run, source="worker_pending_handoff")
             _append_event(
                 task.task_id,
                 "external_handoff",
@@ -411,22 +479,22 @@ def _execute_run(run_id: str) -> None:
             return
 
         if res.ok:
-            runs_repo.upsert(
-                latest_run.model_copy(
-                    update={
+            succeeded_run = latest_run.model_copy(
+                update={
+                    "status": "succeeded",
+                    "finished_at": _now_iso(),
+                    "integration_path": res.integration_path,
+                    "output_excerpt": (res.output or "")[:4000],
+                    "error": None,
+                    "environment_summary": build_environment_summary(task, agent, integration_path=res.integration_path),
+                    "output_snapshot": {
                         "status": "succeeded",
-                        "finished_at": _now_iso(),
-                        "integration_path": res.integration_path,
-                        "output_excerpt": (res.output or "")[:4000],
-                        "error": None,
-                        "environment_summary": build_environment_summary(task, agent, integration_path=res.integration_path),
-                        "output_snapshot": {
-                            "status": "succeeded",
-                            "output": (res.output or "")[:4000],
-                        },
-                    }
-                )
+                        "output": (res.output or "")[:4000],
+                    },
+                }
             )
+            runs_repo.upsert(succeeded_run)
+            complete_run_timeline(run2.run_id, succeeded=True)
             tasks_repo.upsert(
                 latest_task.model_copy(
                     update={
@@ -442,26 +510,28 @@ def _execute_run(run_id: str) -> None:
             )
             _append_event(task.task_id, TaskEvent.task_succeeded.value, "Task succeeded (worker)", {"run_id": run2.run_id, "parent_run_id": run2.parent_run_id})
             _append_run_log(run2.run_id, 4, "info", "Execution succeeded (worker)", {"output_len": len(res.output or "")})
+            reconcile_task_with_run(tasks_repo.get(task.task_id) or latest_task, succeeded_run, source="worker_success")
             agents_repo.upsert(agent.model_copy(update={"status": AgentStatus.idle, "last_heartbeat_at": _now_iso()}))
             return
 
-        runs_repo.upsert(
-            latest_run.model_copy(
-                update={
+        failed_run = latest_run.model_copy(
+            update={
+                "status": "failed",
+                "finished_at": _now_iso(),
+                "integration_path": res.integration_path,
+                "output_excerpt": (res.output or "")[:4000],
+                "error": res.error,
+                "environment_summary": build_environment_summary(task, agent, integration_path=res.integration_path),
+                "output_snapshot": {
                     "status": "failed",
-                    "finished_at": _now_iso(),
-                    "integration_path": res.integration_path,
-                    "output_excerpt": (res.output or "")[:4000],
+                    "output": (res.output or "")[:4000],
                     "error": res.error,
-                    "environment_summary": build_environment_summary(task, agent, integration_path=res.integration_path),
-                    "output_snapshot": {
-                        "status": "failed",
-                        "output": (res.output or "")[:4000],
-                        "error": res.error,
-                    },
-                }
-            )
+                    "meta": res.meta,
+                },
+            }
         )
+        runs_repo.upsert(failed_run)
+        complete_run_timeline(run2.run_id, succeeded=False)
         tasks_repo.upsert(
             latest_task.model_copy(
                 update={
@@ -472,7 +542,7 @@ def _execute_run(run_id: str) -> None:
                 }
             )
         )
-        task = tasks_repo.get(task.task_id) or task
+        task = reconcile_task_with_run(tasks_repo.get(task.task_id) or task, failed_run, source="worker_failure")
         _append_event(task.task_id, TaskEvent.task_failed.value, "Task failed (worker)", {"run_id": run2.run_id, "error": res.error, "parent_run_id": run2.parent_run_id})
         _append_run_log(run2.run_id, 4, "error", f"Execution failed (worker): {res.error}", res.meta)
         append_watchdog_issue(

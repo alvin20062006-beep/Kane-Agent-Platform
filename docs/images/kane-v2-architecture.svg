@@ -1,0 +1,106 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1240" height="760" viewBox="0 0 1240 760" role="img" aria-labelledby="title desc">
+  <title id="title">Kane Agent Platform v2.0.0 architecture</title>
+  <desc id="desc">Kane platform control plane showing Web UI, API, execution loop, Kanaloa built-in agent, Local Bridge, external agents, memory, retrieval, reference aggregation, verifier, repair, and compiler services.</desc>
+  <defs>
+    <style>
+      .bg { fill: #f8fafc; }
+      .panel { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+      .soft { fill: #eef6ff; stroke: #93c5fd; stroke-width: 1.3; }
+      .agent { fill: #f0fdf4; stroke: #86efac; stroke-width: 1.3; }
+      .bridge { fill: #fff7ed; stroke: #fdba74; stroke-width: 1.3; }
+      .memory { fill: #f5f3ff; stroke: #c4b5fd; stroke-width: 1.3; }
+      .warn { fill: #fefce8; stroke: #fde047; stroke-width: 1.3; }
+      .title { font: 700 28px Arial, sans-serif; fill: #0f172a; }
+      .subtitle { font: 400 14px Arial, sans-serif; fill: #475569; }
+      .h { font: 700 16px Arial, sans-serif; fill: #0f172a; }
+      .t { font: 400 13px Arial, sans-serif; fill: #334155; }
+      .small { font: 400 12px Arial, sans-serif; fill: #475569; }
+      .arrow { stroke: #64748b; stroke-width: 1.8; fill: none; marker-end: url(#arrow); }
+      .dash { stroke-dasharray: 6 5; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1240" height="760"/>
+  <text class="title" x="40" y="48">Kane Agent Platform v2.0.0</text>
+  <text class="subtitle" x="40" y="74">Local-first Agent OS control plane. Kanaloa is the current built-in agent path; platform services belong to Kane.</text>
+
+  <rect class="panel" x="40" y="104" width="1160" height="520" rx="12"/>
+  <text class="h" x="64" y="134">Kane Platform</text>
+  <text class="small" x="64" y="154">Control plane, execution loop, audit, memory, retrieval, verifier, repair, compiler, UI APIs</text>
+
+  <rect class="soft" x="70" y="190" width="180" height="88" rx="10"/>
+  <text class="h" x="92" y="220">Web UI</text>
+  <text class="t" x="92" y="242">Next.js</text>
+  <text class="small" x="92" y="262">Port 3000</text>
+
+  <rect class="soft" x="320" y="188" width="210" height="92" rx="10"/>
+  <text class="h" x="344" y="218">FastAPI API</text>
+  <text class="t" x="344" y="240">Platform routes + FileStore</text>
+  <text class="small" x="344" y="260">Port 8000</text>
+
+  <rect class="panel" x="610" y="156" width="250" height="162" rx="10"/>
+  <text class="h" x="634" y="188">Platform Execution Loop</text>
+  <text class="t" x="634" y="214">Task</text>
+  <text class="t" x="634" y="238">Run (execution attempt)</text>
+  <text class="t" x="634" y="262">RunStep (timeline)</text>
+  <text class="small" x="634" y="290">Worker Queue + status reconciliation</text>
+
+  <rect class="agent" x="930" y="148" width="220" height="100" rx="10"/>
+  <text class="h" x="954" y="180">Builtin Agent Runtime</text>
+  <text class="t" x="954" y="204">Kanaloa</text>
+  <text class="small" x="954" y="228">adapter: builtin_octopus</text>
+
+  <rect class="bridge" x="930" y="280" width="220" height="132" rx="10"/>
+  <text class="h" x="954" y="312">Local Bridge</text>
+  <text class="t" x="954" y="336">Codex CLI</text>
+  <text class="t" x="954" y="360">Cursor handoff</text>
+  <text class="t" x="954" y="384">External adapters</text>
+  <text class="small" x="954" y="404">Port 8010; 8011 optional/test</text>
+
+  <rect class="memory" x="72" y="360" width="250" height="170" rx="10"/>
+  <text class="h" x="96" y="392">Kane Memory</text>
+  <text class="t" x="96" y="418">MemoryEvent ledger</text>
+  <text class="t" x="96" y="442">Active Snapshot</text>
+  <text class="t" x="96" y="466">Memory Index</text>
+  <text class="small" x="96" y="494">Ledger is audit data, not prompt memory</text>
+
+  <rect class="memory" x="370" y="360" width="250" height="170" rx="10"/>
+  <text class="h" x="394" y="392">Retrieval</text>
+  <text class="t" x="394" y="418">Exact Retrieval</text>
+  <text class="t" x="394" y="442">Native Evidence Search</text>
+  <text class="small" x="394" y="470">Runtime context budget</text>
+
+  <rect class="warn" x="668" y="360" width="220" height="170" rx="10"/>
+  <text class="h" x="692" y="392">MoA Reference Layer</text>
+  <text class="t" x="692" y="418">Reference Candidate</text>
+  <text class="t" x="692" y="442">Aggregator Decision</text>
+  <text class="small" x="692" y="470">Platform-owned, optional</text>
+
+  <rect class="warn" x="930" y="460" width="220" height="118" rx="10"/>
+  <text class="h" x="954" y="492">Verifier + Repair</text>
+  <text class="t" x="954" y="518">VerifierResult</text>
+  <text class="t" x="954" y="542">RepairAttempt</text>
+  <text class="small" x="954" y="562">Linked from RunStep refs</text>
+
+  <rect class="panel" x="72" y="555" width="816" height="46" rx="10"/>
+  <text class="h" x="96" y="584">Background Memory Compiler</text>
+  <text class="small" x="326" y="584">creates candidates first; commit appends through the ledger path</text>
+
+  <path class="arrow" d="M250 234 L320 234"/>
+  <path class="arrow" d="M530 234 L610 234"/>
+  <path class="arrow" d="M860 220 L930 198"/>
+  <path class="arrow" d="M860 264 L930 342"/>
+  <path class="arrow" d="M735 318 L735 360"/>
+  <path class="arrow" d="M530 278 C506 318 322 318 248 360"/>
+  <path class="arrow" d="M530 286 C550 324 480 330 480 360"/>
+  <path class="arrow" d="M888 444 L930 508"/>
+  <path class="arrow dash" d="M198 530 L198 555"/>
+  <path class="arrow dash" d="M496 530 L496 555"/>
+
+  <rect class="panel" x="40" y="650" width="1160" height="74" rx="10"/>
+  <text class="h" x="64" y="680">Release boundary</text>
+  <text class="t" x="64" y="704">v2.0.0 does not include Connected Accounts, Credential Vault, production Multi-Bridge, generic multi-builtin-agent registry, vector DB, or full headless Cursor execution.</text>
+</svg>

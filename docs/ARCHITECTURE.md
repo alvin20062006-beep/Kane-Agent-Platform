@@ -1,43 +1,146 @@
-# ARCHITECTURE（实现概览）
+# Architecture
 
-本文描述仓库 **当前** 的分层与主要组件，与运行中的 **API / Web / Local Bridge** 一致；不以「冻结骨架」为借口将已实现能力写成占位。
+This document summarizes the v2.0.0 implementation. The source code and FastAPI OpenAPI schema remain the final authority.
 
-## 目录结构
+## Repository Layout
 
-```
-octopus-platform/
+```text
+kane-agent-platform/
   apps/
-    api/           FastAPI 控制面：任务/对话/run/事件/策略/凭证/技能/报告等
-    web/           Next.js 控制台 UI
-    local-bridge/  可选：本机执行适配（CLI / Webhook / handoff / 本地脚本）
+    api/           FastAPI control plane
+    web/           Next.js UI
+    local-bridge/  Local execution and handoff bridge
   packages/
-    schemas/       共享 JSON Schema
-    core/          共享 Python 库（如任务状态机）
-  docs/            公开文档
+    core/          Shared Python helpers
+    schemas/       Shared schemas
+  scripts/         Local setup, stack, wait, stop, and E2E scripts
+  docs/            Public documentation
 ```
 
-## 数据持久化
+## Runtime Services
 
-- **默认**：`OCTOPUS_PERSISTENCE=file`，JSON 文件仓库（数据目录见 `/health` 的 `api_data_dir`）。
-- **可选**：`OCTOPUS_PERSISTENCE=postgres` + `DATABASE_URL`，实体落在 `octopus_entities` 等表（JSONB 载荷），与文件模式共用同一仓储抽象。
+![Kane v2.0.0 architecture](images/kane-v2-architecture.svg)
 
-## 组件关系（简图）
+```text
+Web    -> API
+API    -> FileStore / optional Postgres
+API    -> worker queue
+worker -> builtin executor or Local Bridge
+Bridge -> local CLI / handoff / webhook / callback
+```
 
-- **Web** 通过 `NEXT_PUBLIC_API_BASE_URL` 调用 **API** 的 REST（及浏览器侧 SSE）。
-- **API** 内 **worker** 线程从队列消费待执行 run，按 Agent 适配类型调用内置执行器或 **HTTP 调用 Local Bridge** 的 `/v1/execute`。
-- **Local Bridge** 可选择性将结果 **POST** 回 `POST /integrations/bridge/complete`。
-- **策略引擎**、**Advisor / Governor / Observer**、**Watchdog 指标** 在 API 进程内组合使用，持久化仍走同一 store。
+Default ports:
 
-## 已实现能力与诚实边界
+```text
+Web:    3000
+API:    8000
+Bridge: 8010
+8011:   optional secondary/test bridge port checked during stop/verify
+```
 
-- **任务**：创建、指派、运行、重试、失败、审批门、时间线、执行计划。
-- **Run / 日志 / 事件**：持久化；SSE 流为轮询式增量，非高吞吐实时总线。
-- **技能**：注册表 + `execute` 路径（具体技能行为因 skill 而异）。
-- **外部 Agent**：依赖 Bridge + 本机工具（Claude CLI、Webhook、handoff）；详见 `docs/EXTERNAL_AGENT_INTEGRATION.md`。
-- **生产级多租户 / OAuth / KMS**：未作为本项目开箱能力宣称；单机与实验室内网部署为主。
+Port `8011` is not required by the default stack. It is checked so a secondary local bridge or acceptance-test bridge cannot be left running silently.
 
-## 延伸阅读
+## Execution Model
 
-- `docs/API.md` — HTTP 路由表
-- `docs/LOCAL_BRIDGE.md` — Bridge 行为与安全边界
-- `docs/DATABASE_SCHEMA.md` — 存储模型与 Postgres 兼容说明
+```text
+Task
+  -> Run (execution attempt)
+      -> RunStep (execution timeline)
+```
+
+- Task is the user or system goal.
+- Run is one execution attempt.
+- RunStep records atomic timeline steps such as plan, execute, summarize, verifier, repair, or handoff.
+- Evidence, verifier results, repair attempts, reference aggregation, and memory events are separate records linked by reference IDs.
+
+Task, run, and run-step terminal state must not contradict each other. Failure paths must remain honest.
+
+## Platform Execution Loop
+
+Loop in v2.0.0 belongs to the Kane platform. It is not a Kanaloa-private loop and not only the worker queue.
+
+```text
+Task
+  -> Run
+      -> RunStep
+          -> worker
+              -> builtin executor or Local Bridge
+                  -> result / callback / handoff / failure
+                      -> task status reconciliation
+```
+
+RunStep is the execution timeline. It links to evidence, verifier, repair, reference aggregation, and memory records through reference IDs instead of embedding all business data.
+
+## Builtin Agent And Kanaloa
+
+Kanaloa is the current default built-in AI agent path in v2.0.0. It is seeded as `octopus_builtin`, displayed as `Kanaloa`, and uses adapter type `builtin_octopus`.
+
+Kanaloa is not the Kane platform and is not the memory subsystem. Kane owns the platform services; Kanaloa is one built-in agent runtime path using those services.
+
+The current code does not provide a generic multi-builtin-agent runtime registry. The v2.0.0 public release only documents the built-in Kanaloa path that exists in the code.
+
+## MoA Reference And Aggregator
+
+MoA-style behavior in v2.0.0 is implemented as platform records:
+
+- Reference Candidate
+- Aggregator Decision
+- RunStep reference links
+
+This layer is platform-owned and optional. It is not Kanaloa-private, and it does not claim automatic multi-model orchestration in v2.0.0.
+
+## Memory Model
+
+```text
+Memory Ledger
+  -> MemoryEvent
+  -> ActiveMemorySnapshot
+  -> MemoryIndexEntry
+```
+
+- AI automatic writes are append-only by default.
+- User-owned delete, rewrite, purge, migrate, and export controls are preserved by the API where implemented.
+- Background Memory Compiler creates candidates first.
+- Candidate commit uses the existing ledger append path.
+- The compiler does not rewrite historical events.
+
+The full ledger is audit data. Runtime prompt context should use Active Snapshot, Relevant Evidence, and Current Run Context instead of the full ledger.
+
+## Retrieval
+
+v2.0.0 has two default retrieval layers:
+
+- Exact Retrieval
+- Native Evidence Search
+
+It does not ship vector database, embedding, or graph retrieval as default behavior.
+
+## Verification And Repair
+
+- Verifier results record status, findings, check keys, summaries, and evidence references.
+- Verifier does not accept arbitrary shell strings as execution instructions.
+- Repair attempts record retry, repair, and trace-rollback intent.
+- High-risk repair execution is not automatic.
+
+## Local Bridge
+
+Local Bridge is optional for builtin execution, but required for local external adapter flows such as Codex CLI, Cursor handoff, Claude CLI, local scripts, and generic HTTP/CLI agents.
+
+The Bridge must not pretend unavailable tools are online. Permission errors and missing CLIs are reported honestly.
+
+## Persistence
+
+Default:
+
+```text
+apps/data/
+apps/local-bridge/data/
+```
+
+Both are ignored by Git except `apps/data/.gitkeep`.
+
+Optional PostgreSQL uses the existing store abstraction and compatibility table names. Existing `OCTOPUS_*` environment variable names remain compatible in v2.0.0.
+
+## Public Release Boundaries
+
+v2.0.0 is a local-first Agent OS foundation. It is not a hosted multi-tenant SaaS, credential vault, connected accounts implementation, or multi-bridge production architecture.

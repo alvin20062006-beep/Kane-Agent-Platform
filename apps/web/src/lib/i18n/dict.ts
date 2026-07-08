@@ -106,6 +106,7 @@ const zh: Dict = {
   "skills.new": "新技能",
   "skills.upload_btn": "上传技能包",
   "skills.new_btn": "新建技能",
+  "skills.registry_note": "技能注册入口当前在后端/API 侧；本页只保留已接通的列表、执行、启停、发布和元数据编辑。",
   "skills.tab_installed": "已安装",
   "skills.tab_platform": "平台",
   "skills.tab_private": "私有",
@@ -155,10 +156,14 @@ const zh: Dict = {
   "tasks.title_label": "标题",
   "tasks.description_label": "描述",
   "tasks.title_placeholder": "例：汇总本周系统健康度",
-  "tasks.description_placeholder": "在文本中任意位置包含 'simulate_fail' 可触发失败与重试路径（用于演练）。",
+  "tasks.description_placeholder": "描述任务目标、期望输出和限制条件。",
   "tasks.exec_mode_label": "执行模式",
   "tasks.create": "创建任务",
   "tasks.creating": "创建中…",
+  "tasks.create_success": "Task 创建成功",
+  "tasks.view_details": "查看详情",
+  "tasks.open_run": "查看 Run",
+  "tasks.open_execution_audit": "打开 Execution Audit",
   "tasks.persisted_list": "持久化任务列表",
   "tasks.table.task": "任务",
   "tasks.table.status": "状态",
@@ -474,15 +479,15 @@ const zh: Dict = {
 
   // ---------- Mobile ----------
   "mobile.title": "Mobile Entry",
-  "mobile.subtitle": "移动端入口（本阶段仅占位）",
+  "mobile.subtitle": "移动端常用入口的轻量 Web 视图",
   "mobile.notice":
     "本页是移动端常用入口的 Web 预览，不是原生 App。链接可正常跳转；无原生安装包/Push/OAuth 为预期范围，不是故障。",
   "mobile.scope_title": "移动端范围（明确不做）",
   "mobile.scope_1": "不做 App Store/安装包发布",
   "mobile.scope_2": "不做真实 Push（APNs/FCM）",
   "mobile.scope_3": "不做真实 OAuth 登录",
-  "mobile.quick_actions": "快速动作（占位）",
-  "mobile.todo": "TODO(phase>=5): 真实移动端审批/通知通道（Push/In-app）",
+  "mobile.quick_actions": "快速入口",
+  "mobile.todo": "原生移动审批和推送通知属于后续阶段；当前先复用 Web 控制台能力。",
 
   // ---------- Report detail ----------
   "report_detail.title": "报告详情",
@@ -679,7 +684,7 @@ const zh: Dict = {
   "settings.general.env.api_public_url": "Bridge 回调 API 的公网地址",
   "settings.general.env.bridge_secret": "可选 Bridge 共享密钥",
   "settings.general.env.persistence": "Postgres 模式（默认 file）",
-  "settings.general.env_title": "v1.1 部署与环境：",
+  "settings.general.env_title": "v2.0.0 部署与环境：",
   "settings.general.env_body":
     "默认使用本地文件持久化。凭证与密钥须由部署方妥善保管；面向公网或多租户前请自行加固身份与审计。",
 
@@ -690,7 +695,7 @@ const zh: Dict = {
   "settings.about.open": "打开 →",
 
   // ---------- Common ----------
-  "common.version": "v1.1",
+  "common.version": "v2.0.0",
   "common.yes": "是",
   "common.no": "否",
   "common.saving": "保存中…",
@@ -754,6 +759,8 @@ const zh: Dict = {
   "conv.model.inactive_tooltip": "Kanaloa 尚未激活 LLM，点击前往设置",
   "conv.model.inactive_label": "未激活模型",
   "conv.model.go_configure": "去配置 →",
+  "conv.model.required_message": "未激活模型，Kanaloa 对话发送前需要先在设置中配置并激活模型。",
+  "conv.model.required_send_hint": "未激活模型，无法发送。请先去配置。",
   "conv.model.external_tooltip": "当前操作者为外部 Agent，由其自身执行",
   "conv.model.external_label": "外部执行",
   "conv.skills.label": "技能",
@@ -846,8 +853,8 @@ const zh: Dict = {
   "profiles.activation.activate": "激活 Kanaloa",
   "profiles.section.new": "新建 / 更新 Profile",
 
-  // ---------- Skills placeholder (upload) ----------
-  "skills.upload_body_1": "技能上传/新建尚未在 UI 中接入完整校验流程，入口为占位。",
+  // ---------- Skills upload ----------
+  "skills.upload_body_1": "v2.0.0 支持浏览、执行、启用/禁用和管理已注册技能；上传/新建的完整 UI 流程留到后续版本。",
   "skills.upload_body_2": "当前可通过后端 ",
   "skills.upload_body_3": " 注册技能，或调用 ",
   "skills.upload_body_4": " 修改已存在技能。",
@@ -1009,11 +1016,12 @@ const en: Dict = {
   "skills.new": "New skill",
   "skills.upload_btn": "Upload skill package",
   "skills.new_btn": "Create skill",
+  "skills.registry_note": "Skill registration currently lives on the backend/API side. This page keeps the wired list, execute, enable, publish, and metadata flows.",
   "skills.tab_installed": "Installed",
   "skills.tab_platform": "Platform",
   "skills.tab_private": "Private",
   "skills.notice":
-    "Available now: browse, search, view details, enable/disable, uninstall, and policy notes. Upload and Create are placeholders without full validation — not a bug.",
+    "Available now: browse, search, view details, enable/disable, uninstall, and policy notes. Full upload and creation flows are deferred beyond v2.0.0.",
   "skills.use": "Use",
   "skills.detail_title": "Skill details",
   "skills.risk": "Risk",
@@ -1062,10 +1070,14 @@ const en: Dict = {
   "tasks.description_label": "Description",
   "tasks.title_placeholder": "Summarize this week's system health",
   "tasks.description_placeholder":
-    "Include 'simulate_fail' anywhere in the text to exercise the failure and retry path.",
+    "Describe the task goal, expected output, and any constraints.",
   "tasks.exec_mode_label": "Execution mode",
   "tasks.create": "Create task",
   "tasks.creating": "Creating…",
+  "tasks.create_success": "Task created",
+  "tasks.view_details": "View details",
+  "tasks.open_run": "View run",
+  "tasks.open_execution_audit": "Open Execution Audit",
   "tasks.persisted_list": "Persisted task list",
   "tasks.table.task": "Task",
   "tasks.table.status": "Status",
@@ -1402,15 +1414,15 @@ const en: Dict = {
 
   // ---------- Mobile ----------
   "mobile.title": "Mobile Entry",
-  "mobile.subtitle": "Mobile entry (placeholder in this phase)",
+  "mobile.subtitle": "Lightweight web view for common mobile workflows",
   "mobile.notice":
     "This page is a web preview of common mobile entry points, not a native app. Links work as usual; no store build, push, or OAuth here is expected — not a bug.",
   "mobile.scope_title": "Mobile scope (explicitly not doing)",
   "mobile.scope_1": "No App Store / installer packaging",
   "mobile.scope_2": "No real Push (APNs/FCM)",
   "mobile.scope_3": "No real OAuth login",
-  "mobile.quick_actions": "Quick actions (placeholder)",
-  "mobile.todo": "TODO(phase>=5): real mobile approvals/notifications channel (Push/In-app)",
+  "mobile.quick_actions": "Quick links",
+  "mobile.todo": "Native mobile approvals and push notifications are planned for a later phase; this entry reuses the web console today.",
 
   // ---------- Report detail ----------
   "report_detail.title": "Report Detail",
@@ -1615,7 +1627,7 @@ const en: Dict = {
   "settings.general.env.api_public_url": "Public URL for bridge callbacks",
   "settings.general.env.bridge_secret": "Optional shared secret for bridge",
   "settings.general.env.persistence": "Postgres mode (default: file)",
-  "settings.general.env_title": "v1.1 deployment & environment: ",
+  "settings.general.env_title": "v2.0.0 deployment & environment: ",
   "settings.general.env_body":
     "Default persistence uses local files. Protect secrets and credentials for your environment. For internet-facing or multi-tenant deployments, add your own authentication, audit, and key management.",
 
@@ -1626,7 +1638,7 @@ const en: Dict = {
   "settings.about.open": "Open →",
 
   // ---------- Common ----------
-  "common.version": "v1.1",
+  "common.version": "v2.0.0",
   "common.yes": "Yes",
   "common.no": "No",
   "common.saving": "Saving…",
@@ -1690,6 +1702,8 @@ const en: Dict = {
   "conv.model.inactive_tooltip": "Kanaloa LLM not activated — click to configure",
   "conv.model.inactive_label": "Model inactive",
   "conv.model.go_configure": "Configure →",
+  "conv.model.required_message": "Model is inactive. Configure and activate a model before sending a Kanaloa conversation message.",
+  "conv.model.required_send_hint": "Model inactive. Configure a model before sending.",
   "conv.model.external_tooltip": "Operator is an external agent; it runs its own execution",
   "conv.model.external_label": "External",
   "conv.skills.label": "Skills",
@@ -1784,9 +1798,9 @@ const en: Dict = {
   "profiles.activation.activate": "Activate Kanaloa",
   "profiles.section.new": "New / update profile",
 
-  // ---------- Skills placeholder (upload) ----------
+  // ---------- Skills upload ----------
   "skills.upload_body_1":
-    "Skill upload / creation is not yet wired to a full UI validation flow; this entry is a placeholder.",
+    "v2.0.0 supports browsing, executing, enabling/disabling, and managing registered skills. Full upload and creation flows are deferred beyond v2.0.0.",
   "skills.upload_body_2": "Register skills via ",
   "skills.upload_body_3": " on the backend, or call ",
   "skills.upload_body_4": " to modify existing ones.",

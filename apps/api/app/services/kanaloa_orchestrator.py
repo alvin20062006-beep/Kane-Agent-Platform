@@ -29,7 +29,7 @@ from .kanaloa_actions import cancel_agent_task, create_agent_task
 from .kanaloa_observer import observe_platform_task, sanitize_text, summarize_observation_for_subtask, terminal_status
 from .permission_gate import Principal, get_kanaloa_principal
 from .runtime_audit import append_watchdog_issue, now_iso
-from .verification_runner import build_verification_subtask_specs, verification_record_stub
+from .verification_runner import build_verification_subtask_specs, verification_record_template
 
 
 def _emit_audit(master: OrchestratorMasterTask, typ: str, message: str, payload: dict[str, Any] | None = None) -> None:
@@ -276,7 +276,7 @@ def resolve_verification_record(sub: OrchestratorSubtaskRecord) -> dict[str, Any
     tid = sub.platform_task_id
     err = sub.error
     if not tid:
-        return verification_record_stub(
+        return verification_record_template(
             command_key=cmd,
             command=cmd,
             status="blocked",
@@ -289,7 +289,7 @@ def resolve_verification_record(sub: OrchestratorSubtaskRecord) -> dict[str, Any
         )
     tk: Task | None = tasks_repo.get(tid)
     if not tk:
-        return verification_record_stub(
+        return verification_record_template(
             command_key=cmd,
             command=cmd,
             status="failed",
@@ -320,7 +320,7 @@ def resolve_verification_record(sub: OrchestratorSubtaskRecord) -> dict[str, Any
     else:
         vphase = pv
         st_line = pv
-    return verification_record_stub(
+    return verification_record_template(
         command_key=cmd,
         command=cmd,
         status=st_line,

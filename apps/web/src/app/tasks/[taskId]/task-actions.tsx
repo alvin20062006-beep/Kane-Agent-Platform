@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { apiGet, apiPost, getApiBaseUrl } from "@/lib/api";
 import { useT } from "@/lib/i18n/LocaleProvider";
@@ -18,6 +18,11 @@ export function TaskRetryRunButton({
 }) {
   const t = useT();
   const [busy, setBusy] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const run = async () => {
     setBusy(true);
@@ -34,7 +39,7 @@ export function TaskRetryRunButton({
     <button
       type="button"
       data-testid={testId}
-      disabled={busy}
+      disabled={busy || !hydrated}
       onClick={() => void run()}
       className={
         className ??
@@ -70,7 +75,12 @@ export function TaskActions({
   const selectedAgent = agents.find((a) => a.agent_id === selectedAgentId);
   const [log, setLog] = useState("");
   const [busy, setBusy] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
   const [approvalNote, setApprovalNote] = useState("");
+
+  useEffect(() => {
+    setHydrated(true);
+  }, []);
 
   const waitForTaskStatus = async (predicate: (t: Task) => boolean) => {
     const startedAt = Date.now();
@@ -141,6 +151,7 @@ export function TaskActions({
           <select
             data-testid="assign-agent-select"
             className="rounded-md border border-zinc-200 px-3 py-2 text-sm"
+            disabled={!hydrated || busy}
             value={selectedAgentId}
             onChange={(event) => setSelectedAgentId(event.target.value)}
           >
@@ -153,7 +164,7 @@ export function TaskActions({
           <button
             data-testid="assign-task-button"
             type="button"
-            disabled={busy}
+            disabled={busy || !hydrated}
             onClick={() =>
               runRequest("/assign", {
                 agent_id: selectedAgentId,
@@ -166,7 +177,7 @@ export function TaskActions({
           <button
             data-testid="run-task-button"
             type="button"
-            disabled={busy}
+            disabled={busy || !hydrated}
             onClick={() => runRequest("/run")}
             className="rounded-md bg-[var(--octo-royal-blue)] px-3 py-2 text-sm text-white disabled:opacity-50"
           >
@@ -176,7 +187,7 @@ export function TaskActions({
             <button
               data-testid="approve-task-button"
               type="button"
-              disabled={busy}
+              disabled={busy || !hydrated}
               onClick={() => runRequest("/approve", { note: approvalNote })}
               className="rounded-md border border-emerald-200 px-3 py-2 text-sm text-emerald-800 disabled:opacity-50"
             >
@@ -187,7 +198,7 @@ export function TaskActions({
             <button
               data-testid="reject-task-button"
               type="button"
-              disabled={busy}
+              disabled={busy || !hydrated}
               onClick={() => runRequest("/reject", { reason: approvalNote })}
               className="rounded-md border border-rose-200 px-3 py-2 text-sm text-rose-800 disabled:opacity-50"
             >
@@ -197,7 +208,7 @@ export function TaskActions({
           <button
             data-testid="retry-only-button"
             type="button"
-            disabled={busy}
+            disabled={busy || !hydrated}
             onClick={() => runRequest("/retry")}
             className="rounded-md border border-emerald-200 px-3 py-2 text-sm text-emerald-800 disabled:opacity-50"
           >
@@ -207,7 +218,7 @@ export function TaskActions({
           <button
             data-testid="mark-failed-button"
             type="button"
-            disabled={busy}
+            disabled={busy || !hydrated}
             onClick={() =>
               runRequest("/fail", { reason: "operator_mark_failed_from_ui" })
             }

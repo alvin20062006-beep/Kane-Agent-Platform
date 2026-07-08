@@ -167,6 +167,234 @@ export type Run = {
   callback_summary?: Record<string, unknown> | null;
 };
 
+export type RunStep = {
+  run_step_id: string;
+  run_id: string;
+  task_id: string;
+  sequence: number;
+  step_type: "plan" | "execute" | "summarize" | "other";
+  status: "pending" | "running" | "succeeded" | "failed" | "blocked" | "skipped";
+  title?: string | null;
+  parent_step_id?: string | null;
+  agent_id?: string | null;
+  skill_id?: string | null;
+  tool_call_id?: string | null;
+  decision_id?: string | null;
+  failure_id?: string | null;
+  input_context_ref?: string | null;
+  output_ref?: string | null;
+  verification_ref?: string | null;
+  repair_ref?: string | null;
+  evidence_refs: string[];
+  memory_event_refs: string[];
+  retry_count: number;
+  retry_history: Array<Record<string, unknown>>;
+  latest_failure_type?: string | null;
+  attempt_index: number;
+  created_at: string;
+  updated_at?: string | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  correlation_id?: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type ReferenceCandidate = {
+  candidate_id: string;
+  run_id: string;
+  run_step_id: string;
+  task_id: string;
+  agent_role: string;
+  summary: string;
+  risks: string[];
+  recommended_plan: string[];
+  files_to_touch: string[];
+  confidence: number;
+  evidence_refs: string[];
+  status: "proposed" | "selected" | "rejected";
+  created_at: string;
+  metadata: Record<string, unknown>;
+};
+
+export type AggregatorDecision = {
+  aggregation_id: string;
+  run_id: string;
+  run_step_id: string;
+  task_id: string;
+  candidates_considered: string[];
+  selected_plan: string[];
+  rejected_candidates: Array<Record<string, unknown>>;
+  consensus: string;
+  conflicts: string[];
+  confidence: number;
+  known_gaps: string[];
+  verifier_requirements: string[];
+  requires_user_confirmation: boolean;
+  evidence_refs: string[];
+  created_at: string;
+  metadata: Record<string, unknown>;
+};
+
+export type VerifierResult = {
+  result_id: string;
+  run_id: string;
+  run_step_id: string;
+  task_id: string;
+  verifier_type: "code" | "docs" | "security" | "bridge" | "manual";
+  status: "passed" | "failed" | "blocked" | "skipped";
+  passed: boolean;
+  findings: string[];
+  command_key?: string | null;
+  check_key?: string | null;
+  output_summary?: string | null;
+  error_summary?: string | null;
+  evidence_refs: string[];
+  created_at: string;
+  metadata: Record<string, unknown>;
+};
+
+export type RepairAttempt = {
+  repair_attempt_id: string;
+  run_id: string;
+  run_step_id: string;
+  task_id: string;
+  verifier_result_id: string;
+  failure_id?: string | null;
+  failure_ref?: string | null;
+  failure_type: string;
+  attempt_index: number;
+  attempt_kind: "retry" | "repair" | "trace_rollback";
+  status: string;
+  repair_action: string;
+  action_key?: string | null;
+  repair_key?: string | null;
+  loop_event?: string | null;
+  needs_user_confirmation: boolean;
+  high_risk: boolean;
+  safety_status: "allowed" | "needs_user_confirmation" | "blocked";
+  evidence_refs: string[];
+  created_at: string;
+  metadata: Record<string, unknown>;
+};
+
+export type MemoryCompilerRun = {
+  compiler_run_id: string;
+  scope_type: "run" | "task";
+  scope_id: string;
+  run_id?: string | null;
+  task_id?: string | null;
+  dry_run: boolean;
+  status: "completed" | "failed";
+  policy_name: string;
+  candidates_created: number;
+  candidates_committed: number;
+  started_at: string;
+  finished_at: string;
+  metadata: Record<string, unknown>;
+};
+
+export type MemoryCompilerCandidate = {
+  candidate_id: string;
+  compiler_run_id: string;
+  candidate_type: string;
+  status: "proposed" | "committed" | "rejected" | "skipped";
+  memory_id?: string | null;
+  subject_key: string;
+  scope_type?: string | null;
+  scope_id?: string | null;
+  source_type?: string | null;
+  source_id?: string | null;
+  run_id?: string | null;
+  run_step_id?: string | null;
+  task_id?: string | null;
+  conversation_id?: string | null;
+  skill_id?: string | null;
+  decision_id?: string | null;
+  failure_id?: string | null;
+  content_json: Record<string, unknown>;
+  value_json: Record<string, unknown>;
+  evidence_refs: string[];
+  confidence?: number | null;
+  policy_result: Record<string, unknown>;
+  supersedes_event_id?: string | null;
+  invalidates_event_id?: string | null;
+  fingerprint: string;
+  committed_event_id?: string | null;
+  created_at: string;
+  committed_at?: string | null;
+  metadata: Record<string, unknown>;
+};
+
+export type MemoryEvent = {
+  event_id: string;
+  memory_id?: string | null;
+  event_type: string;
+  subject_key?: string | null;
+  scope_type?: string | null;
+  scope_id?: string | null;
+  source_type?: string | null;
+  source_id?: string | null;
+  run_id?: string | null;
+  run_step_id?: string | null;
+  task_id?: string | null;
+  conversation_id?: string | null;
+  skill_id?: string | null;
+  decision_id?: string | null;
+  failure_id?: string | null;
+  content_json: Record<string, unknown>;
+  value_json: Record<string, unknown>;
+  evidence_refs: string[];
+  confidence?: number | null;
+  policy_result?: Record<string, unknown> | null;
+  supersedes_event_id?: string | null;
+  invalidates_event_id?: string | null;
+  created_by: "ai" | "user" | "system";
+  created_at: string;
+  metadata: Record<string, unknown>;
+};
+
+export type MemoryIndexEntry = {
+  index_id: string;
+  memory_id: string;
+  subject_key?: string | null;
+  status: "candidate" | "active" | "rejected" | "superseded" | "invalidated" | "deleted" | "purged";
+  memory_type?: string | null;
+  title?: string | null;
+  scope_type?: string | null;
+  scope_id?: string | null;
+  source_type?: string | null;
+  source_id?: string | null;
+  latest_event_id?: string | null;
+  tags: string[];
+  updated_at: string;
+  value_json: Record<string, unknown>;
+};
+
+export type ActiveMemorySnapshot = {
+  snapshot_id: string;
+  scope_type: string;
+  scope_id: string;
+  memory_ids: string[];
+  event_ids: string[];
+  value_json: Record<string, unknown>;
+  updated_at: string;
+};
+
+export type RetrievalResult = {
+  mode?: string;
+  query?: string;
+  key_type?: string;
+  key?: string;
+  items?: Array<Record<string, unknown>>;
+  active_snapshot?: ActiveMemorySnapshot | null;
+  relevant_evidence?: Array<Record<string, unknown>>;
+  current_run_context?: Record<string, unknown> | null;
+  used_chars?: number;
+  max_chars?: number;
+  truncated?: boolean;
+  [key: string]: unknown;
+};
+
 export type RunLogLine = {
   log_id: string;
   run_id: string;

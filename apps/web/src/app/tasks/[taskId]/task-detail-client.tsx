@@ -23,6 +23,7 @@ import type {
 } from "@/lib/octopus-types";
 
 import { LiveStream } from "./live-stream";
+import { ExecutionAuditPanel } from "./execution-audit-panel";
 import { TaskActions, TaskRetryRunButton } from "./task-actions";
 import { TaskStatusLive } from "./task-status-live";
 
@@ -104,7 +105,7 @@ export function TaskDetailClient({
   return (
     <div className="space-y-6 p-6">
       <div className="flex items-center justify-between gap-3">
-        <PageTitle title={t("task_detail.title")} subtitle={t("task_detail.subtitle", taskId)} />
+        <PageTitle title={t("task_detail.title")} subtitle={t("task_detail.subtitle").replace("{0}", taskId)} />
         <Link
           href="/tasks"
           className="rounded-md border border-zinc-200 px-3 py-2 text-sm hover:bg-zinc-50"
@@ -413,6 +414,8 @@ export function TaskDetailClient({
           </div>
         </section>
       ) : null}
+
+      <ExecutionAuditPanel taskId={taskId} runs={timeline.runs} />
 
       <section data-testid="task-runs-card" className="rounded-lg border border-zinc-200 bg-white p-4">
         <div className="text-sm font-semibold">{t("task_detail.runs_logs")}</div>

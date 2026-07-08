@@ -1,29 +1,37 @@
-﻿{
-    "name":  "octopus-platform",
-    "private":  true,
-    "license":  "UNLICENSED",
-    "version":  "1.1.0",
-    "description":  "Kane / Kāne AI Agent Platform monorepo (proprietary).",
-    "workspaces":  [
-                       "apps/*",
-                       "packages/*"
-                   ],
-    "scripts":  {
-                    "setup:api":  "powershell -ExecutionPolicy Bypass -File scripts/setup-api.ps1",
-                    "setup:bridge":  "powershell -ExecutionPolicy Bypass -File scripts/setup-bridge.ps1",
-                    "setup":  "npm run setup:api \u0026\u0026 npm run setup:bridge",
-                    "dev":  "concurrently -n api,web -c magenta,cyan \"npm run dev:api\" \"npm run dev:web\"",
-                    "dev:stack":  "concurrently -n api,bridge,web -c magenta,yellow,cyan \"npm run dev:api\" \"npm run dev:bridge\" \"npm run dev:web\"",
-                    "wait:stack":  "powershell -ExecutionPolicy Bypass -File scripts/wait-for-stack.ps1",
-                    "dev:api":  "cd apps/api \u0026\u0026 .\\\\.venv\\\\Scripts\\\\python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
-                    "dev:bridge":  "cd apps/local-bridge \u0026\u0026 .\\\\.venv\\\\Scripts\\\\python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8010",
-                    "dev:web":  "npm --workspace @octopus/web run dev",
-                    "verify":  "npm run typecheck \u0026\u0026 npm run lint",
-                    "typecheck":  "npm --workspace @octopus/web run typecheck",
-                    "build:web":  "npm --workspace @octopus/web run build",
-                    "lint":  "npm --workspace @octopus/web run lint"
-                },
-    "devDependencies":  {
-                            "concurrently":  "^9.2.1"
-                        }
+{
+    "name": "kane-agent-platform",
+    "private": true,
+    "license": "UNLICENSED",
+    "version": "2.0.0",
+    "description": "Kane Agent Platform v2.0.0 monorepo (proprietary).",
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ],
+    "scripts": {
+        "setup:api": "node scripts/setup-python.mjs apps/api",
+        "setup:bridge": "node scripts/setup-python.mjs apps/local-bridge",
+        "setup": "npm run setup:api && npm run setup:bridge",
+        "venv:api": "npm run setup:api",
+        "venv:bridge": "npm run setup:bridge",
+        "dev": "concurrently -n api,web -c magenta,cyan \"npm run dev:api\" \"npm run dev:web\"",
+        "dev:stack": "node scripts/dev-stack.mjs",
+        "stop:stack": "powershell -ExecutionPolicy Bypass -File scripts/stop-stack.ps1",
+        "wait:stack": "powershell -ExecutionPolicy Bypass -File scripts/wait-for-stack.ps1",
+        "test:e2e:smoke": "node scripts/e2e-smoke.mjs",
+        "dev:api": "node scripts/run-python.mjs apps/api -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000",
+        "dev:bridge": "node scripts/run-python.mjs apps/local-bridge -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8010",
+        "dev:web": "npm --workspace @kane/web run dev",
+        "verify": "npm run typecheck:web && npm run build:web && npm run test:api && npm run test:bridge",
+        "typecheck": "npm --workspace @kane/web run typecheck",
+        "typecheck:web": "npm --workspace @kane/web run typecheck",
+        "build:web": "npm --workspace @kane/web run build",
+        "lint": "npm --workspace @kane/web run lint",
+        "test:api": "node scripts/run-python.mjs apps/api -m pytest -q",
+        "test:bridge": "node scripts/run-python.mjs apps/local-bridge -m pytest -q"
+    },
+    "devDependencies": {
+        "concurrently": "^9.2.1",
+        "playwright": "^1.59.1"
+    }
 }

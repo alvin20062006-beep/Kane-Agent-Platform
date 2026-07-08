@@ -56,7 +56,7 @@ async function fetchHealth(): Promise<HealthSummary> {
   }
 }
 
-type BridgeSummary = { online: boolean };
+type BridgeSummary = { online: boolean | null };
 
 async function fetchBridge(): Promise<BridgeSummary> {
   try {
@@ -239,10 +239,18 @@ function OrchestratorIcon({
 }
 
 function BridgeIcon({ online, t }: BridgeSummary & { t: (k: string, fb?: string) => string }) {
+  const state = online === null ? "checking" : online ? "online" : "offline";
+  const label =
+    online === null
+      ? `${t("topbar.bridge")} ...`
+      : online
+      ? t("topbar.bridge")
+      : `${t("topbar.bridge")} offline`;
+
   return (
     <Link
-      href={online ? "/local-bridge" : "/local-bridge?connect=1"}
-      title={`${t("topbar.bridge")}: ${online ? "online" : "offline"}`}
+      href={online === false ? "/local-bridge?connect=1" : "/local-bridge"}
+      title={`${t("topbar.bridge")}: ${state}`}
       className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-blue-50 hover:bg-white/15 transition-colors"
     >
       <svg
@@ -254,7 +262,7 @@ function BridgeIcon({ online, t }: BridgeSummary & { t: (k: string, fb?: string)
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className={online ? "text-green-600" : "text-red-400"}
+        className={online === null ? "text-blue-100" : online ? "text-green-600" : "text-red-400"}
         aria-hidden
       >
         <path d="M12 22V12" />
@@ -262,10 +270,10 @@ function BridgeIcon({ online, t }: BridgeSummary & { t: (k: string, fb?: string)
         <path d="M12 2a10 10 0 0 1 10 10" />
         <path d="M12 2a10 10 0 0 0-10 10" />
       </svg>
-      {!online ? (
+      {online === false ? (
         <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500" />
       ) : null}
-      <span className="hidden sm:inline">{online ? t("topbar.bridge") : `${t("topbar.bridge")} ✕`}</span>
+      <span className="hidden sm:inline">{label}</span>
     </Link>
   );
 }
@@ -401,7 +409,7 @@ export function TopBar() {
   const pathname = usePathname();
   const { t } = useLocale();
   const [health, setHealth] = useState<HealthSummary>({ status: "unknown", label: "…" });
-  const [bridge, setBridge] = useState<BridgeSummary>({ online: false });
+  const [bridge, setBridge] = useState<BridgeSummary>({ online: null });
   const [agentsSummary, setAgentsSummary] = useState<AgentsSummary>({ total: 0, anomalies: 0, external: 0 });
   const [notif, setNotif] = useState<NotifSummary>({ recent: 0 });
   const [memCand, setMemCand] = useState<MemoryCandidateSummary>({ pending: 0 });

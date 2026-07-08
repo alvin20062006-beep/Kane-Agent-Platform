@@ -69,7 +69,7 @@ def build_verification_subtask_specs(user_instruction: str) -> list[dict[str, An
     return specs
 
 
-def verification_record_stub(
+def verification_record_template(
     *,
     command_key: str | None,
     command: str | None,

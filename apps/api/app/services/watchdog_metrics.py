@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import datetime, timedelta, timezone
+from time import monotonic, perf_counter
 from typing import Any
+import threading
 
 import httpx
 
@@ -21,6 +24,47 @@ from ..store.repositories import (
 )
 from .worker_queue import get_worker_state
 
+_BRIDGE_PROBE_TTL_SECONDS = 3.0
+_SUMMARY_CACHE_TTL_SECONDS = 1.0
+_BRIDGE_PROBE_LOCK = threading.RLock()
+_BRIDGE_PROBE_CACHE: dict[str, tuple[float, dict[str, Any]]] = {}
+_BRIDGE_PROBE_INFLIGHT: dict[str, threading.Event] = {}
+_SUMMARY_CACHE_LOCK = threading.RLock()
+_METRICS_SUMMARY_CACHE: tuple[float, dict[str, Any]] | None = None
+_WATCHDOG_STATUS_CACHE: tuple[float, WatchdogStatus] | None = None
+
+
+def clear_summary_cache() -> None:
+    global _METRICS_SUMMARY_CACHE, _WATCHDOG_STATUS_CACHE
+    with _SUMMARY_CACHE_LOCK:
+        _METRICS_SUMMARY_CACHE = None
+        _WATCHDOG_STATUS_CACHE = None
+
+
+def clear_bridge_probe_cache() -> None:
+    with _BRIDGE_PROBE_LOCK:
+        for event in _BRIDGE_PROBE_INFLIGHT.values():
+            event.set()
+        _BRIDGE_PROBE_CACHE.clear()
+        _BRIDGE_PROBE_INFLIGHT.clear()
+    clear_summary_cache()
+
+
+def _copy_probe_with_cache_state(
+    probe: dict[str, Any],
+    *,
+    cache_hit: bool,
+    cached_at: float | None,
+) -> dict[str, Any]:
+    copied = deepcopy(probe)
+    age_ms = None if cached_at is None else round((monotonic() - cached_at) * 1000, 2)
+    copied["probe_cache"] = {
+        "hit": cache_hit,
+        "ttl_seconds": _BRIDGE_PROBE_TTL_SECONDS,
+        "age_ms": age_ms,
+    }
+    return copied
+
 
 def _parse_iso(ts: str) -> datetime:
     # Handle ...+00:00
@@ -39,7 +83,16 @@ def _latest_watchdog_issue_state(events: list[WatchdogEvent]) -> list[WatchdogEv
     return list(latest.values())
 
 
-def build_watchdog_status() -> WatchdogStatus:
+def build_watchdog_status(*, bridge_probe: dict[str, Any] | None = None) -> WatchdogStatus:
+    global _WATCHDOG_STATUS_CACHE
+
+    now_mono = monotonic()
+    with _SUMMARY_CACHE_LOCK:
+        if _WATCHDOG_STATUS_CACHE is not None:
+            cached_at, cached_status = _WATCHDOG_STATUS_CACHE
+            if now_mono - cached_at <= _SUMMARY_CACHE_TTL_SECONDS:
+                return deepcopy(cached_status)
+
     tasks = tasks_repo.list()
     agents = agents_repo.list()
     runs = runs_repo.list()
@@ -77,13 +130,8 @@ def build_watchdog_status() -> WatchdogStatus:
     degraded_agents = sum(1 for a in agents if a.status.value == "degraded")
     waiting_handoffs = sum(1 for t in tasks if t.status.value == "waiting_approval")
 
-    bridge_reachable: bool | None = None
-    try:
-        with httpx.Client(timeout=3.0) as c:
-            r = c.get(f"{get_local_bridge_url()}/health")
-            bridge_reachable = r.status_code == 200
-    except Exception:  # noqa: BLE001
-            bridge_reachable = False
+    probe = bridge_probe if bridge_probe is not None else probe_local_bridge_detailed()
+    bridge_reachable = probe.get("reachable")
 
     last_run_finished_at = None
     finished = [r.finished_at for r in runs if r.finished_at]
@@ -169,19 +217,22 @@ def build_watchdog_status() -> WatchdogStatus:
         reverse=True,
     )[:24]
 
-    return WatchdogStatus(
+    status = WatchdogStatus(
         summary=summary,
         events=events[:12],
         recovery_hints=recovery_hints,
         latest_issues=latest_issues,
     )
+    with _SUMMARY_CACHE_LOCK:
+        _WATCHDOG_STATUS_CACHE = (monotonic(), deepcopy(status))
+    return status
 
 
-def probe_local_bridge_detailed() -> dict[str, Any]:
+def _probe_local_bridge_detailed_uncached(url: str) -> dict[str, Any]:
     """
     Fresh HTTP probe used by the control-plane wizard (POST /local-bridge/probe).
     """
-    url = get_local_bridge_url()
+    started = perf_counter()
     reachable: bool | None = None
     error: str | None = None
     health_body: Any = None
@@ -240,10 +291,74 @@ def probe_local_bridge_detailed() -> dict[str, Any]:
         "bridge_status": merged_bs if merged_bs else status_body,
         "hints": hints,
         "probed_at": datetime.now(tz=timezone.utc).isoformat(),
+        "probe_elapsed_ms": round((perf_counter() - started) * 1000, 2),
     }
 
 
-def build_metrics() -> dict:
+def probe_local_bridge_detailed(*, fresh: bool = False) -> dict[str, Any]:
+    """
+    Probe Local Bridge. Default callers use a short TTL cache; explicit probe actions pass fresh=True.
+    """
+    url = get_local_bridge_url()
+    if fresh:
+        probe = _probe_local_bridge_detailed_uncached(url)
+        cached_at = monotonic()
+        with _BRIDGE_PROBE_LOCK:
+            _BRIDGE_PROBE_CACHE[url] = (cached_at, deepcopy(probe))
+        return _copy_probe_with_cache_state(probe, cache_hit=False, cached_at=cached_at)
+
+    is_owner = False
+    with _BRIDGE_PROBE_LOCK:
+        cached = _BRIDGE_PROBE_CACHE.get(url)
+        if cached is not None:
+            cached_at, cached_probe = cached
+            if monotonic() - cached_at <= _BRIDGE_PROBE_TTL_SECONDS:
+                return _copy_probe_with_cache_state(cached_probe, cache_hit=True, cached_at=cached_at)
+
+        inflight = _BRIDGE_PROBE_INFLIGHT.get(url)
+        if inflight is None:
+            inflight = threading.Event()
+            _BRIDGE_PROBE_INFLIGHT[url] = inflight
+            is_owner = True
+
+    if not is_owner:
+        inflight.wait()
+        with _BRIDGE_PROBE_LOCK:
+            cached = _BRIDGE_PROBE_CACHE.get(url)
+            if cached is not None:
+                cached_at, cached_probe = cached
+                return _copy_probe_with_cache_state(cached_probe, cache_hit=True, cached_at=cached_at)
+
+    if is_owner:
+        try:
+            probe = _probe_local_bridge_detailed_uncached(url)
+            cached_at = monotonic()
+            with _BRIDGE_PROBE_LOCK:
+                _BRIDGE_PROBE_CACHE[url] = (cached_at, deepcopy(probe))
+            return _copy_probe_with_cache_state(probe, cache_hit=False, cached_at=cached_at)
+        finally:
+            with _BRIDGE_PROBE_LOCK:
+                event = _BRIDGE_PROBE_INFLIGHT.pop(url, None)
+                if event is not None:
+                    event.set()
+
+    probe = _probe_local_bridge_detailed_uncached(url)
+    cached_at = monotonic()
+    with _BRIDGE_PROBE_LOCK:
+        _BRIDGE_PROBE_CACHE[url] = (cached_at, deepcopy(probe))
+    return _copy_probe_with_cache_state(probe, cache_hit=False, cached_at=cached_at)
+
+
+def build_metrics(*, bridge_probe: dict[str, Any] | None = None) -> dict:
+    global _METRICS_SUMMARY_CACHE
+
+    now_mono = monotonic()
+    with _SUMMARY_CACHE_LOCK:
+        if _METRICS_SUMMARY_CACHE is not None:
+            cached_at, cached_metrics = _METRICS_SUMMARY_CACHE
+            if now_mono - cached_at <= _SUMMARY_CACHE_TTL_SECONDS:
+                return deepcopy(cached_metrics)
+
     tasks = tasks_repo.list()
     agents = agents_repo.list()
     runs = runs_repo.list()
@@ -263,13 +378,11 @@ def build_metrics() -> dict:
     waiting_handoffs = sum(1 for t in tasks if t.status.value == "waiting_approval")
     last_run = max((r.finished_at or r.started_at or r.queued_at for r in runs), default=None)
 
-    bridge = {"reachable": None, "url": get_local_bridge_url()}
-    try:
-        with httpx.Client(timeout=3.0) as c:
-            r = c.get(f"{get_local_bridge_url()}/health")
-            bridge["reachable"] = r.status_code == 200
-    except Exception:  # noqa: BLE001
-        bridge["reachable"] = False
+    probe = bridge_probe if bridge_probe is not None else probe_local_bridge_detailed()
+    bridge = {
+        "reachable": probe.get("reachable"),
+        "url": probe.get("url") or get_local_bridge_url(),
+    }
 
     agent_by: dict[str, int] = {}
     for a in agents:
@@ -284,7 +397,7 @@ def build_metrics() -> dict:
         1 for m in master_tasks_repo.list() if m.status not in _orch_terminal
     )
 
-    return {
+    metrics = {
         "version": PLATFORM_VERSION,
         "tasks": {"total": len(tasks), "by_status": by_status},
         "conversations": {"total": len(conversations)},
@@ -320,6 +433,9 @@ def build_metrics() -> dict:
         },
         "orchestrator": {"active_masters": active_orchestrators},
     }
+    with _SUMMARY_CACHE_LOCK:
+        _METRICS_SUMMARY_CACHE = (monotonic(), deepcopy(metrics))
+    return metrics
 
 
 def build_local_bridge_recent_callback_audit(*, limit: int = 12) -> list[dict[str, Any]]:

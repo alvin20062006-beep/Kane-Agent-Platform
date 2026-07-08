@@ -1,371 +1,232 @@
+# Kane Agent Platform v2.0.0
 
-# Kane / Kāne AI Agent Platform
+Kane Agent Platform is a local-first Agent Operating System for agent execution. It combines a Next.js Web UI, FastAPI control plane, Local Bridge, agent adapters, task execution loop, memory audit, retrieval, verifier records, repair records, and background memory compilation into one local control surface.
 
-**Copyright © Kāne / Kane Agent Platform. All rights reserved.**
+Kane is not a Memory Framework, a RAG Framework, or a Workflow Engine. Memory, retrieval, MoA-style reference review, verification, repair, and UI audit surfaces exist to support agent execution.
 
-![Agent Fleet — English UI](docs/images/agent-fleet-en.png)
+## What Is Kane
 
-**Kāne** is a local-first AI agent platform: a control plane for running, coordinating, and observing AI agents. It includes conversations, tasks, skills, credentials, a Local Bridge for external tools, and a Next.js web UI.
+Kane is the platform. It owns the control plane, Task -> Run -> RunStep execution model, worker queue, memory ledger, retrieval services, verifier and repair records, background compiler, Local Bridge integration, and Web UI.
 
-**Kanaloa** is the built-in Octopus AI agent shipped with Kāne. It is the default onboard agent identity in the product UI and seed data. Third-party or self-hosted agents can be added alongside Kanaloa, so the platform is not limited to a single model provider or vendor.
+Kanaloa is not the platform and is not the memory subsystem. In v2.0.0, Kanaloa is the current default built-in AI agent path exposed through the seeded `octopus_builtin` agent, display name `Kanaloa`, and adapter type `builtin_octopus`. The platform can also dispatch to local external adapters such as Codex CLI and Cursor handoff through the Local Bridge.
 
-This README is intended for a **public repository mirror**. It does not include internal product specifications, private roadmap notes, release checklists, audit logs, or development process documents.
+## Core Features
 
-**What this public tree includes:** application source (`apps/*`, `packages/*`), public-safe docs under `docs/` (for example `API.md`, `VERIFY.md`, `LOCAL_BRIDGE.md`), and runtime setup examples (`.env.example`).
+- Next.js Web UI for dashboard, conversations, tasks, memory, settings, bridge, and agent fleet.
+- FastAPI control-plane API for tasks, runs, run steps, agents, memory, retrieval, verifier, repair, and compiler records.
+- Local Bridge service for local CLI execution, handoff, callback, and status reporting.
+- Platform Execution Loop: Task -> Run -> RunStep, worker queue, executor/bridge result handling, and task status reconciliation.
+- Kane Memory Ledger with append-only AI MemoryEvent writes, Active Snapshot, and Memory Index.
+- Kanaloa built-in agent path for local platform-owned task execution.
+- Exact Retrieval and Native Evidence Search.
+- Platform Reference Candidate and Aggregator Decision records.
+- VerifierResult records and RunStep verification references.
+- RepairAttempt records and RunStep repair references.
+- Background Memory Compiler candidate -> manual commit flow.
+- Execution Audit UI for timeline, reference aggregation, verifier, repair, compiler, memory, and retrieval inspection.
+- Repeatable local stack scripts, smoke tests, and safe stop/restore guidance.
 
-**What it excludes:** `docs/PRD.md`, private roadmaps, internal audit/process/checklist documents, `apps/data/*.json`, `.env` / real API keys, and other machine-local runtime data.
+## Architecture Overview
 
----
+![Kane v2.0.0 architecture](docs/images/kane-v2-architecture.svg)
 
-## What You Get
-
-- **Web app** (`apps/web`)  
-  Dashboard, conversations, cockpit, agent fleet, skills, memory, files, settings, and an English/Chinese UI shell.
-
-- **API service** (`apps/api`)  
-  FastAPI backend, OpenAPI docs at `/docs`, file-backed persistence by default, and optional PostgreSQL configuration.
-
-- **Local Bridge** (`apps/local-bridge`)  
-  A local HTTP bridge that can invoke local commands, forward webhooks, coordinate handoff flows, and return task results to the API.
-
-- **Kanaloa agent runtime**  
-  Built-in platform agent with staged capabilities:
-  - **P0 — Platform awareness:** reads platform capabilities, registered agents, adapters, and bridge status.
-  - **P1 — Action Gateway:** creates tasks, dispatches agents, reads task status/events, and cancels tasks.
-  - **P2 — Permission profiles:** supports `owner`, `safe`, and `readonly` profiles for local/private deployments.
-  - **P3 — Orchestrator Runtime:** creates master tasks, splits subtasks, selects agents, observes results, retries failures, and summarizes outcomes.
-
----
-
-## Current Integration Status
-
-| Integration | Status |
-|---|---|
-| Claude Code | Supported through the Local Bridge / adapter flow. Requires local Claude CLI availability or falls back to handoff behavior. |
-| Cursor | Handoff-only / not fully automated. The platform does not pretend Cursor is connected when no supported bridge is available. |
-| OpenClaw | Supported when `OPENCLAW_WEBHOOK_URL` or equivalent bridge configuration is provided; otherwise falls back to handoff behavior. |
-| Local scripts | Supported through the Local Bridge in local/private deployments. |
-| MCP | Not treated as fully implemented unless an actual MCP registry/server is configured. |
-
----
-
-## Requirements
-
-- Node.js 18+  
-  Node.js 20+ is recommended.
-- Python 3.10+  
-  Python 3.11+ is recommended.
-
----
-
-## Data Privacy
-
-Runtime data such as conversations, tasks, runs, API profiles, and local state lives under:
+Default local ports:
 
 ```text
-apps/data/
+Web:    3000
+API:    8000
+Bridge: 8010
+8011:   optional secondary/test bridge port used by stop/verification scripts when present
 ```
 
-This directory is ignored by Git by default. A fresh clone does not include another machine’s local tasks, conversations, credentials, or runtime JSON files.
+Port `8011` is not started by the default stack. It is reserved for optional secondary or acceptance-test bridge processes. The stop and verification scripts check it alongside `3000`, `8000`, and `8010` so a secondary local bridge cannot remain running silently.
 
-Only this placeholder should be tracked:
+## Screenshots
 
-```text
-apps/data/.gitkeep
-```
-
-Do not commit:
-
-```text
-apps/data/*.json
-.env
-.env.*
-*.env
-```
-
----
+![Agent Fleet](docs/images/agent-fleet-en.png)
 
 ## Quick Start
 
-### Recommended (repository root)
+Requirements:
 
-**Requirements:** Node.js 18+ (20+ recommended), Python 3.10+ (3.11+ recommended).  
-**Platform note:** root `npm` scripts for API and Bridge assume **Windows** virtualenv paths (`apps/*/.venv/Scripts/python`). On macOS/Linux, use the [manual fallback](#manual-fallback-macos--linux-or-custom-venv) below.
+- Node.js 18+; Node.js 20+ recommended.
+- Python 3.10+; Python 3.11+ recommended.
+- Windows PowerShell for the bundled stack scripts on Windows.
+- The root `npm install` installs workspace JavaScript dependencies, including Playwright for `test:e2e:smoke`.
 
-**1. Install Node dependencies and Python environments**
+From the repository root:
 
 ```bash
 npm install
-npm run setup:api
-npm run setup:bridge
+npm run setup
+npm run dev:stack
 ```
 
-(`npm run setup` runs both setup scripts.)
-
-**2. Configure the Web app**
-
-Copy the example env file and adjust if needed:
+In a second terminal:
 
 ```bash
-# PowerShell (from repo root)
-Copy-Item .env.example apps/web/.env.local
+npm run wait:stack
+npm run test:e2e:smoke
 ```
 
-At minimum, `apps/web/.env.local` should contain:
-
-```text
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
-```
-
-Export API/Bridge variables in each terminal (or your service manager) from [`.env.example`](.env.example) — see [Environment configuration](#environment-configuration).
-
-**3. Start services (three terminals)**
-
-```bash
-npm run dev:api
-```
-
-```bash
-npm run dev:bridge
-```
-
-```bash
-npm run dev:web
-```
-
-Web dev uses `next dev --webpack` (see `apps/web/package.json`). On Windows with non-ASCII project paths, avoid Turbopack — stick to the default webpack dev server.
-
-**4. Open the UI**
+Open:
 
 ```text
 http://127.0.0.1:3000
 ```
 
-**5. Smoke-check**
+On Windows you can use `npm.cmd` in place of `npm`.
 
-With API and Bridge running:
+## Verification
 
-```text
-GET http://127.0.0.1:8000/health
-```
-
-The health response includes a `startup` object with per-phase timings (import, bootstrap, worker thread). API stderr also logs lines tagged `startup` when `OCTOPUS_STARTUP_LOG` is not disabled.
-
-Offline checks (no servers required):
+Offline baseline:
 
 ```bash
-npm run verify
+npm run typecheck:web
+npm run test:api
+npm run test:bridge
 ```
 
-`npm run verify` runs Web `typecheck` and `lint` (this public mirror does not ship pytest / Playwright suites).
-
----
-
-### Manual fallback (macOS / Linux or custom venv)
-
-#### API (port 8000)
+Live stack:
 
 ```bash
-cd apps/api
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+npm run dev:stack
+npm run wait:stack
+npm run test:e2e:smoke
 ```
 
-OpenAPI: `http://127.0.0.1:8000/docs`
-
-#### Web (port 3000)
+Safe shutdown:
 
 ```bash
-# export NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
-cd apps/web
-npm run dev
+npm run stop:stack
 ```
 
-If the UI is unresponsive when switching between `localhost` and `127.0.0.1`, align the host with `allowedDevOrigins` in `apps/web/next.config.ts`.
+`stop:stack` only stops processes that are manifest-owned or command-line verified as belonging to this repo's dev stack. It does not force-kill unknown listeners. Before restoring runtime data, verify that ports `3000`, `8000`, `8010`, and `8011` are down and HTTP probes fail.
 
-#### Local Bridge (port 8010)
+See [docs/VERIFY.md](docs/VERIFY.md) and [docs/SAFE_STOP_AND_RESTORE.md](docs/SAFE_STOP_AND_RESTORE.md).
 
-```bash
-cd apps/local-bridge
-python -m venv .venv
-source .venv/bin/activate   # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8010
-```
+## Agent Architecture
 
-See `apps/local-bridge/README.md` for bridge callbacks and adapter behavior.
+Kane separates platform services from agent runtimes.
 
----
+The platform owns task intake, the execution loop, the worker queue, shared services, and status reconciliation. Kanaloa sits below that as the current built-in AI agent runtime path. External agents sit behind the Local Bridge, including Codex CLI and Cursor handoff.
 
-## Environment configuration
+The current v2.0.0 built-in path is Kanaloa. The current code does not provide a generic multi-builtin-agent runtime registry.
 
-Use [`.env.example`](.env.example) as the template. **Do not commit** `.env`, `.env.local`, real API keys, tokens, or `apps/data/*.json`.
+## Execution Flow
 
-| Variable | Used by | Purpose |
-|----------|---------|---------|
-| `NEXT_PUBLIC_API_BASE_URL` | **Web** (`apps/web/.env.local`) | Browser → API base URL |
-| `OCTOPUS_API_PUBLIC_URL` | **API**, **Bridge** | Callback URL Bridge uses to reach API |
-| `OCTOPUS_LOCAL_BRIDGE_URL` | **API** | API → Bridge probe / dispatch |
-| `OCTOPUS_BRIDGE_SHARED_SECRET` | **API**, **Bridge** | Optional shared auth header |
-| `OPENCLAW_WEBHOOK_URL` | **Bridge** | Optional OpenClaw ingest webhook |
-| `OCTOPUS_PERSISTENCE` | **API** | `file` (default) or `postgres` |
-| `DATABASE_URL` / `OCTOPUS_DATABASE_URL` | **API** | PostgreSQL when persistence is `postgres` |
-| `OCTOPUS_LLM_API_KEY`, `LLM_API_KEY` | **API** | LLM provider keys (process env preferred) |
-| `LLM_MAX_TOKENS`, `OCTOPUS_LLM_MAX_TOKENS` | **API** | Output cap (`unlimited` = provider default) |
+- Task is the user or system goal.
+- Run is one execution attempt.
+- RunStep records atomic execution timeline steps such as plan, execute, summarize, verifier, repair, or handoff.
+- Worker execution dispatches either to the built-in Kanaloa path or to Local Bridge adapters, and task status reconciliation keeps Task, Run, and RunStep terminal states aligned.
+- Evidence, verifier results, repair attempts, reference aggregation, and memory events remain separate records linked by reference IDs.
 
-**Web → API**
+Task, Run, and RunStep terminal states should not contradict each other. Failure paths must remain honest: permission errors, missing tools, and handoff states are recorded instead of being reported as fake success.
+
+## Loop
+
+Loop in v2.0.0 is a platform execution loop, not a Kanaloa-private loop and not just the worker queue. The loop includes:
+
+- Task creation and assignment.
+- Run creation for an execution attempt.
+- RunStep timeline creation and finalization.
+- Worker execution.
+- Builtin executor or Local Bridge dispatch.
+- Bridge callback/result handling.
+- Verifier and repair references when present.
+- Task status reconciliation from explicit worker, Run, Bridge, handoff, or failure outcomes.
+
+## MoA
+
+MoA-style review is represented as Kane platform records:
+
+- Reference Candidate records.
+- Aggregator Decision records.
+- RunStep reference IDs linking decisions and evidence.
+
+This layer is optional and platform-owned. It is not Kanaloa-private. Future agents can call or contribute to the same platform reference and aggregation layer, but v2.0.0 does not claim automatic multi-model orchestration.
+
+## Memory
+
+Kane Memory in v2.0.0 includes:
+
+- MemoryEvent append-only ledger for AI automatic writes.
+- ActiveMemorySnapshot for current runtime memory.
+- MemoryIndexEntry for lookup and current state.
+- Background Memory Compiler candidates.
+
+The full ledger is audit data. Runtime context should use Active Snapshot, Relevant Evidence, and Current Run Context instead of placing the full append-only ledger into prompts.
+
+AI automatic writes are append-only by default. User-owned delete, rewrite, purge, migrate, and export semantics are preserved where implemented.
+
+## Builtin Agent
+
+Kanaloa is the current built-in agent path in v2.0.0. It is seeded as `octopus_builtin`, uses adapter type `builtin_octopus`, and executes through the API worker without requiring Local Bridge.
+
+Builtin success must converge Task, Run, and RunStep terminal state. Builtin execution does not mean the whole platform is Kanaloa.
+
+## External Agents
+
+Kane v2.0.0 supports local external adapter acceptance paths:
+
+- Codex CLI: reports real CLI availability and permission errors. A Windows `WinError 5` or permission failure is recorded as failure/attention, not success.
+- Cursor: treated as handoff-oriented. Kane can create handoff work and track waiting state, but does not pretend Cursor completed full headless execution without a real callback/result.
+- Other local CLI/HTTP adapter shapes exist in the control plane, but the public v2.0.0 release validates the local acceptance paths above.
+
+## Local Bridge
+
+Local Bridge is required for local external adapter flows such as Codex CLI and Cursor handoff. It owns local status, handoff, callback, and adapter probing. It must not pretend unavailable tools are online.
+
+Default bridge runtime data lives under:
 
 ```text
-NEXT_PUBLIC_API_BASE_URL=http://127.0.0.1:8000
+apps/local-bridge/data/
 ```
 
-**API ↔ Local Bridge**
+This directory is ignored by Git.
+
+## Project Structure
 
 ```text
-OCTOPUS_LOCAL_BRIDGE_URL=http://127.0.0.1:8010
-OCTOPUS_API_PUBLIC_URL=http://127.0.0.1:8000
+apps/web              Next.js frontend
+apps/api              FastAPI backend
+apps/local-bridge     Local Bridge service
+apps/data             Local API runtime data, ignored except .gitkeep
+packages/core         Shared Python helpers
+packages/schemas      Shared schemas
+scripts               Local stack, setup, wait, stop, and E2E scripts
+docs                  Public documentation
 ```
-
-Docker Compose (internal network):
-
-```text
-OCTOPUS_API_PUBLIC_URL=http://api:8000
-```
-
-**LLM keys (API process)**
-
-```text
-OCTOPUS_LLM_API_KEY=
-LLM_API_KEY=
-```
-
-Kāne checks `OCTOPUS_LLM_API_KEY` first, then `LLM_API_KEY`. Prefer process environment over storing keys in local runtime JSON.
-
-**LLM output token cap**
-
-```text
-LLM_MAX_TOKENS=unlimited
-OCTOPUS_LLM_MAX_TOKENS=unlimited
-```
-
-Values such as `unlimited`, `infinite`, `auto`, `none`, `0`, or `-1` mean Kāne will not send `max_tokens` (provider limits apply). Set a positive integer to cap output length, for example `LLM_MAX_TOKENS=8000`.
-
----
-
-## Docker Compose
-
-Docker Compose is intended for local/private deployment.
-
-```bash
-docker compose config
-docker compose up --build
-```
-
-In Docker Compose mode, the Local Bridge should use:
-
-```text
-OCTOPUS_API_PUBLIC_URL=http://api:8000
-```
-
-This is for the internal Docker network. It does not mean the project is configured as a public SaaS service.
-
----
-
-## Security and Limitations
-
-Kāne is currently intended for **local/private deployments**, not as a hardened public multi-tenant SaaS.
-
-Local/private deployment assumptions:
-
-* The owner controls the machine.
-* Runtime data stays local unless explicitly exported.
-* Local Bridge execution is under the owner’s control.
-* `owner` mode is intended for private use.
-
-Before exposing Kāne to the public internet, you must add or configure:
-
-* HTTP authentication
-* CORS allowlist
-* Reverse proxy access control
-* Secret management
-* Deployment hardening
-* Network-level restrictions
-* Rate limiting and monitoring, where appropriate
-
-Public internet exposure is not the default deployment model.
-
----
-
-## Repository Layout
-
-| Path                | Role                                                 |
-| ------------------- | ---------------------------------------------------- |
-| `apps/web`          | Next.js frontend                                     |
-| `apps/api`          | FastAPI backend                                      |
-| `apps/local-bridge` | Local Bridge service                                 |
-| `apps/data`         | Local runtime data, ignored by Git except `.gitkeep` |
-| `packages/schemas`  | Shared JSON schemas                                  |
-| `packages/core`     | Shared Python library (`octopus_core`)               |
-| `docs`              | Public-safe documentation                            |
-
----
-
-## Tests and Verification
-
-**Public mirror (offline; pytest / Playwright suites are not shipped in this tree):**
-
-```bash
-npm run verify
-```
-
-This runs `typecheck` and `lint`.
-
-**Additional checks:**
-
-```bash
-npm run build:web
-docker compose config
-```
-
-For step-by-step local smoke tests (health, task flow, Bridge callback), see [`docs/VERIFY.md`](docs/VERIFY.md).
-
-After starting services, API health: `GET http://127.0.0.1:8000/health` (includes optional `startup` timing when `OCTOPUS_STARTUP_LOG=1`).
-
-If a script is unavailable in your checkout, check `package.json` and the relevant app-level package files.
-
----
 
 ## Documentation
 
-* [`docs/VERIFY.md`](docs/VERIFY.md) — Local verification guide
-* [`docs/API.md`](docs/API.md) — HTTP API overview
-* [`docs/LOCAL_BRIDGE.md`](docs/LOCAL_BRIDGE.md) — Local Bridge behavior, environment variables, and safety boundaries
-* [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — Architecture and persistence overview
-* [`docs/EXTERNAL_AGENT_INTEGRATION.md`](docs/EXTERNAL_AGENT_INTEGRATION.md) — External agent integration status and current limitations
+- [docs/AGENT_OS_FOUNDATION.md](docs/AGENT_OS_FOUNDATION.md) - v2.0 Agent OS foundation
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) - architecture overview
+- [docs/API.md](docs/API.md) - API overview
+- [docs/VERIFY.md](docs/VERIFY.md) - verification guide
+- [docs/SAFE_STOP_AND_RESTORE.md](docs/SAFE_STOP_AND_RESTORE.md) - safe stop and data restore
+- [docs/LOCAL_BRIDGE.md](docs/LOCAL_BRIDGE.md) - Local Bridge details
+- [docs/EXTERNAL_AGENT_INTEGRATION.md](docs/EXTERNAL_AGENT_INTEGRATION.md) - external agent integration notes
+- [CHANGELOG.md](CHANGELOG.md) - release history
+- [RELEASE_NOTES.md](RELEASE_NOTES.md) - v2.0.0 release notes
 
----
+## Safety Notes
 
-## Contributing
+Kane v2.0.0 is designed for local/private use. It is not a hardened public multi-tenant SaaS by default. Before exposing it to an untrusted network, add authentication, network restrictions, CORS policy review, secret management, rate limiting, and deployment hardening appropriate to your environment.
 
-Issues and pull requests are welcome.
+Local runtime data is intentionally ignored by Git:
 
-Please keep changes focused, avoid committing local runtime data, and do not include secrets, private keys, internal planning documents, release checklists, audit logs, or non-public process notes.
+```text
+apps/data/
+apps/local-bridge/data/
+```
 
----
+Do not commit `.env`, `.env.local`, API keys, runtime JSON data, logs, caches, local handoff files, or generated test artifacts.
 
-## License and Commercial Use
+## License And Commercial Use
 
-Source is publicly visible, but this project is **not** released under an OSI-approved open-source license such as MIT, Apache, or GPL.
+Source is publicly visible, but this project is not released under an OSI-approved open-source license such as MIT, Apache, or GPL.
 
-You may use this software and may copy, modify, merge, and redistribute the source code or build artifacts as described below, provided that the copyright notice is retained.
-
-Commercial use requires prior contact and agreement with the copyright holder. Commercial use includes, but is not limited to:
-
-* offering the software as a paid service;
-* delivering the software as part of a paid product or solution;
-* using the software in a client-facing commercial deployment;
-* materially equivalent commercial scenarios.
+Commercial use requires prior contact and agreement with the copyright holder. Commercial use includes offering the software as a paid service, delivering it as part of a paid product or solution, using it in a client-facing commercial deployment, or materially equivalent commercial scenarios.
 
 For commercial use, evaluation, collaboration, or additional permissions, please contact the repository owner or open an Issue.

@@ -4,6 +4,9 @@ import json
 import os
 import shutil
 import subprocess
+import threading
+import time
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -60,7 +63,7 @@ class ExecutePayload(BaseModel):
     agent_control_plane: dict[str, Any] | None = None
 
 
-BRIDGE_VERSION = "1.1.0"
+BRIDGE_VERSION = "2.0.0"
 _SUPPORTED_ADAPTERS = [
     "claude_code",
     "codex_cli",
@@ -72,15 +75,19 @@ _SUPPORTED_ADAPTERS = [
 ]
 
 app = FastAPI(
-    title="Octopus Local Bridge",
-    version="1.1.0",
-    description="Local execution adapter: POST /v1/execute (Claude CLI, Codex CLI, OpenClaw webhook, handoff files, local_script, Cursor handoff) + API callback.",
+    title="Kane Local Bridge",
+    version="2.0.0",
+    description="Kane local execution adapter: POST /v1/execute (Claude CLI, Codex CLI, OpenClaw webhook, handoff files, local_script, Cursor handoff) + API callback.",
 )
 
 AGENTS: dict[str, AgentRegistration] = {}
 HEARTBEATS: dict[str, Heartbeat] = {}
 RESULTS: list[TaskResult] = []
-LAST_EXECUTE: dict[str, str | None] = {"at": None, "last_error": None}
+LAST_EXECUTE: dict[str, Any] = {"at": None, "last_error": None}
+STATE_LOCK = threading.RLock()
+_ADAPTER_PROBE_TTL_SECONDS = 2.0
+_ADAPTER_PROBE_LOCK = threading.RLock()
+_ADAPTER_PROBE_CACHE: tuple[float, dict[str, Any]] | None = None
 
 
 def _read_json(path: Path, fallback: Any) -> Any:
@@ -94,39 +101,55 @@ def _read_json(path: Path, fallback: Any) -> Any:
 
 def _write_json(path: Path, payload: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
+    tmp = path.with_name(f"{path.name}.{os.getpid()}.{time.time_ns()}.tmp")
     tmp.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-    os.replace(tmp, path)
+    last_err: Exception | None = None
+    for attempt in range(8):
+        try:
+            os.replace(tmp, path)
+            last_err = None
+            break
+        except (PermissionError, OSError) as err:
+            last_err = err
+            time.sleep(0.05 * (attempt + 1))
+    if last_err:
+        raise last_err
 
 
 def _persist_state() -> None:
-    _write_json(AGENTS_FILE, [item.model_dump() for item in AGENTS.values()])
-    _write_json(HEARTBEATS_FILE, [item.model_dump() for item in HEARTBEATS.values()])
-    _write_json(RESULTS_FILE, [item.model_dump() for item in RESULTS[-200:]])
-    _write_json(STATUS_FILE, LAST_EXECUTE)
+    with STATE_LOCK:
+        _write_json(AGENTS_FILE, [item.model_dump() for item in AGENTS.values()])
+        _write_json(HEARTBEATS_FILE, [item.model_dump() for item in HEARTBEATS.values()])
+        _write_json(RESULTS_FILE, [item.model_dump() for item in RESULTS[-200:]])
+        _write_json(STATUS_FILE, LAST_EXECUTE)
 
 
 def _load_state() -> None:
-    agents = _read_json(AGENTS_FILE, [])
-    heartbeats = _read_json(HEARTBEATS_FILE, [])
-    results = _read_json(RESULTS_FILE, [])
-    status = _read_json(STATUS_FILE, LAST_EXECUTE)
+    with STATE_LOCK:
+        agents = _read_json(AGENTS_FILE, [])
+        heartbeats = _read_json(HEARTBEATS_FILE, [])
+        results = _read_json(RESULTS_FILE, [])
+        status = _read_json(STATUS_FILE, LAST_EXECUTE)
 
-    AGENTS.clear()
-    for item in agents:
-        reg = AgentRegistration.model_validate(item)
-        AGENTS[reg.agent_id] = reg
+        AGENTS.clear()
+        for item in agents:
+            reg = AgentRegistration.model_validate(item)
+            AGENTS[reg.agent_id] = reg
 
-    HEARTBEATS.clear()
-    for item in heartbeats:
-        hb = Heartbeat.model_validate(item)
-        HEARTBEATS[hb.agent_id] = hb
+        HEARTBEATS.clear()
+        for item in heartbeats:
+            hb = Heartbeat.model_validate(item)
+            HEARTBEATS[hb.agent_id] = hb
 
-    RESULTS.clear()
-    for item in results:
-        RESULTS.append(TaskResult.model_validate(item))
+        RESULTS.clear()
+        for item in results[-200:]:
+            RESULTS.append(TaskResult.model_validate(item))
 
-    LAST_EXECUTE.update({"at": status.get("at"), "last_error": status.get("last_error")})
+        LAST_EXECUTE.clear()
+        if isinstance(status, dict):
+            LAST_EXECUTE.update(status)
+        LAST_EXECUTE.setdefault("at", None)
+        LAST_EXECUTE.setdefault("last_error", None)
 
 
 _load_state()
@@ -197,34 +220,68 @@ def _try_run(cmd: list[str], timeout: float) -> tuple[int, str, str]:
     return p.returncode, out[:24000], out
 
 
+def _record_last_execute(**updates: Any) -> None:
+    with STATE_LOCK:
+        LAST_EXECUTE.update(updates)
+    _persist_state()
+
+
 def _adapter_probe_payload() -> dict[str, Any]:
+    global _ADAPTER_PROBE_CACHE
+
+    now = time.monotonic()
+    with _ADAPTER_PROBE_LOCK:
+        if _ADAPTER_PROBE_CACHE is not None:
+            cached_at, cached_payload = _ADAPTER_PROBE_CACHE
+            if now - cached_at <= _ADAPTER_PROBE_TTL_SECONDS:
+                return deepcopy(cached_payload)
+
+        payload = {
+            "bridge_version": BRIDGE_VERSION,
+            "claude_on_path": bool(shutil.which(_claude_command().split()[0])),
+            "codex_on_path": bool(shutil.which(_codex_command().split()[0])),
+            "cursor_on_path": bool(shutil.which("cursor")),
+            "openclaw_configured": bool(_openclaw_url()),
+            "supported_adapters": list(_SUPPORTED_ADAPTERS),
+        }
+        _ADAPTER_PROBE_CACHE = (time.monotonic(), deepcopy(payload))
+        return payload
+
+
+def clear_adapter_probe_cache() -> None:
+    global _ADAPTER_PROBE_CACHE
+    with _ADAPTER_PROBE_LOCK:
+        _ADAPTER_PROBE_CACHE = None
+
+
+def _status_snapshot() -> dict[str, Any]:
+    with STATE_LOCK:
+        return {
+            "agents_registered": len(AGENTS),
+            "heartbeats": len(HEARTBEATS),
+            "last_execute": dict(LAST_EXECUTE),
+            "handoff_dir": str(HANDOFF_DIR),
+            "last_heartbeat_at": max((hb.ts for hb in HEARTBEATS.values()), default=None),
+            "results_count": len(RESULTS),
+        }
+
+
+def _status_payload() -> dict[str, Any]:
     return {
-        "bridge_version": BRIDGE_VERSION,
-        "claude_on_path": bool(shutil.which(_claude_command().split()[0])),
-        "codex_on_path": bool(shutil.which(_codex_command().split()[0])),
-        "cursor_on_path": bool(shutil.which("cursor")),
-        "openclaw_configured": bool(_openclaw_url()),
-        "supported_adapters": list(_SUPPORTED_ADAPTERS),
+        "version": BRIDGE_VERSION,
+        **_adapter_probe_payload(),
+        **_status_snapshot(),
     }
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "service": "local-bridge", "version": BRIDGE_VERSION, **_adapter_probe_payload()}
+    return {"status": "ok", "service": "kane-local-bridge", "version": BRIDGE_VERSION, **_adapter_probe_payload()}
 
 
 @app.get("/v1/status")
 def status():
-    return {
-        "version": BRIDGE_VERSION,
-        **_adapter_probe_payload(),
-        "agents_registered": len(AGENTS),
-        "heartbeats": len(HEARTBEATS),
-        "last_execute": LAST_EXECUTE,
-        "handoff_dir": str(HANDOFF_DIR),
-        "last_heartbeat_at": max((hb.ts for hb in HEARTBEATS.values()), default=None),
-        "results_count": len(RESULTS),
-    }
+    return _status_payload()
 
 
 @app.post("/agents/register")
@@ -233,7 +290,8 @@ def register_agent(
     x_octopus_bridge_key: str | None = Header(default=None, alias="X-Octopus-Bridge-Key"),
 ):
     _require_bridge_key(x_octopus_bridge_key)
-    AGENTS[payload.agent_id] = payload
+    with STATE_LOCK:
+        AGENTS[payload.agent_id] = payload
     _persist_state()
     return {"ok": True, "version": BRIDGE_VERSION, "data": payload}
 
@@ -244,7 +302,8 @@ def heartbeat(
     x_octopus_bridge_key: str | None = Header(default=None, alias="X-Octopus-Bridge-Key"),
 ):
     _require_bridge_key(x_octopus_bridge_key)
-    HEARTBEATS[payload.agent_id] = payload
+    with STATE_LOCK:
+        HEARTBEATS[payload.agent_id] = payload
     _persist_state()
     return {"ok": True, "version": BRIDGE_VERSION, "data": payload}
 
@@ -252,25 +311,27 @@ def heartbeat(
 @app.get("/agents")
 def list_agents(x_octopus_bridge_key: str | None = Header(default=None, alias="X-Octopus-Bridge-Key")):
     _require_bridge_key(x_octopus_bridge_key)
-    return {
-        "version": BRIDGE_VERSION,
-        "agents": list(AGENTS.values()),
-        "heartbeats": list(HEARTBEATS.values()),
-    }
+    with STATE_LOCK:
+        return {
+            "version": BRIDGE_VERSION,
+            "agents": list(AGENTS.values()),
+            "heartbeats": list(HEARTBEATS.values()),
+        }
 
 
 @app.get("/agents/{agent_id}")
 def get_agent(agent_id: str, x_octopus_bridge_key: str | None = Header(default=None, alias="X-Octopus-Bridge-Key")):
     _require_bridge_key(x_octopus_bridge_key)
-    agent = AGENTS.get(agent_id)
-    if not agent:
-        raise HTTPException(status_code=404, detail="agent_not_found")
-    return {
-        "version": BRIDGE_VERSION,
-        "agent": agent,
-        "heartbeat": HEARTBEATS.get(agent_id),
-        "recent_results": [r for r in RESULTS if r.agent_id == agent_id][-10:],
-    }
+    with STATE_LOCK:
+        agent = AGENTS.get(agent_id)
+        if not agent:
+            raise HTTPException(status_code=404, detail="agent_not_found")
+        return {
+            "version": BRIDGE_VERSION,
+            "agent": agent,
+            "heartbeat": HEARTBEATS.get(agent_id),
+            "recent_results": [r for r in RESULTS if r.agent_id == agent_id][-10:],
+        }
 
 
 def _cp_get(payload: ExecutePayload, key: str) -> Any:
@@ -296,7 +357,7 @@ def _write_handoff_file(payload: ExecutePayload, prompt: str, vendor: str, suffi
         "---\n\n"
     )
     body = frontmatter + (
-        f"# Octopus → {vendor} handoff\n\n"
+        f"# Kane -> {vendor} handoff\n\n"
         f"- task_id: `{payload.task_id}`\n"
         f"- run_id: `{payload.run_id}`\n"
         f"- agent_id: `{payload.agent_id}`\n"
@@ -324,11 +385,12 @@ def _write_handoff_file(payload: ExecutePayload, prompt: str, vendor: str, suffi
 
 def _channel_http(payload: ExecutePayload, prompt: str, url: str) -> dict[str, Any]:
     """Universal HTTP channel: POST the task to any agent webhook."""
+    started = time.perf_counter()
     try:
         r = httpx.post(
             url,
             json={
-                "source": "octopus_platform",
+                "source": "kane_agent_platform",
                 "task_id": payload.task_id,
                 "run_id": payload.run_id,
                 "agent_id": payload.agent_id,
@@ -342,15 +404,18 @@ def _channel_http(payload: ExecutePayload, prompt: str, url: str) -> dict[str, A
             },
             timeout=30.0,
         )
+        elapsed_ms = round((time.perf_counter() - started) * 1000, 2)
         text = r.text[:8000]
         if r.status_code >= 400:
             return {"ok": False, "version": BRIDGE_VERSION, "integration_path": "http_agent",
-                    "output": text, "error": f"http_agent_{r.status_code}"}
+                    "output": text, "error": f"http_agent_{r.status_code}",
+                    "http_status_code": r.status_code, "elapsed_ms": elapsed_ms,
+                    "output_excerpt": text[:2000] if text else None}
         return {"ok": True, "version": BRIDGE_VERSION, "integration_path": "http_agent",
-                "output": text or "Agent webhook accepted payload (empty body).", "error": None}
+                "output": text or "Agent webhook accepted payload (empty body).", "error": None,
+                "http_status_code": r.status_code, "elapsed_ms": elapsed_ms}
     except Exception as e:  # noqa: BLE001
-        LAST_EXECUTE["last_error"] = str(e)
-        _persist_state()
+        _record_last_execute(last_error=str(e), last_error_type=type(e).__name__)
         return {"ok": False, "version": BRIDGE_VERSION, "integration_path": "http_agent", "output": None, "error": str(e)}
 
 
@@ -380,17 +445,54 @@ def _channel_cli(payload: ExecutePayload, prompt: str, command: str, *, exec_sub
         out = (p.stdout or "") + (p.stderr or "")
         ok = p.returncode == 0
         return {"ok": ok, "version": BRIDGE_VERSION, "integration_path": "cli_agent",
-                "output": out[:24000], "error": None if ok else f"cli_exit_{p.returncode}"}
+                "output": out[:24000], "error": None if ok else f"cli_exit_{p.returncode}",
+                "error_type": None if ok else "ProcessExit", "exit_code": p.returncode}
     except Exception as e:  # noqa: BLE001
-        LAST_EXECUTE["last_error"] = str(e)
-        _persist_state()
-        return {"ok": False, "version": BRIDGE_VERSION, "integration_path": "cli_agent", "output": None, "error": str(e)}
+        error_type = type(e).__name__
+        winerror = getattr(e, "winerror", None)
+        errno = getattr(e, "errno", None)
+        error_kind = "permission_denied" if isinstance(e, PermissionError) or winerror == 5 else "cli_launch_error"
+        diagnostic_hint = (
+            "The CLI was found but Windows denied execution. Check file permissions, execution policy, antivirus controls, and whether the CLI can run in this shell."
+            if error_kind == "permission_denied"
+            else "The CLI could not be launched by Local Bridge. Check the configured command and working directory."
+        )
+        error_text = f"{error_type}: {e}"
+        _record_last_execute(
+            status="failed",
+            integration_path="cli_agent",
+            last_error=error_text,
+            last_error_type=error_type,
+            error_kind=error_kind,
+        )
+        return {
+            "ok": False,
+            "version": BRIDGE_VERSION,
+            "integration_path": "cli_agent",
+            "output": None,
+            "error": error_text,
+            "error_type": error_type,
+            "error_kind": error_kind,
+            "winerror": winerror,
+            "errno": errno,
+            "diagnostic_hint": diagnostic_hint,
+        }
 
 
 def _track_execute_error(res: dict[str, Any]) -> None:
-    if not res.get("ok"):
-        LAST_EXECUTE["last_error"] = res.get("error")
-        _persist_state()
+    if res.get("ok"):
+        _record_last_execute(status="succeeded", integration_path=res.get("integration_path"), last_error=None)
+        return
+    _record_last_execute(
+        status="failed",
+        integration_path=res.get("integration_path"),
+        last_error=res.get("error"),
+        last_error_type=res.get("error_type"),
+        error_kind=res.get("error_kind"),
+        http_status_code=res.get("http_status_code"),
+        elapsed_ms=res.get("elapsed_ms"),
+        output_excerpt=res.get("output_excerpt") or ((res.get("output") or "")[:2000] if res.get("output") else None),
+    )
 
 
 def _run_cli_preset(
@@ -430,7 +532,7 @@ def execute(
     x_octopus_bridge_key: str | None = Header(default=None, alias="X-Octopus-Bridge-Key"),
 ):
     """
-    Synchronous execute invoked by Octopus API.
+    Synchronous execute invoked by Kane API.
     Honest behavior:
     - claude_code: runs `claude` CLI if installed; otherwise handoff file.
     - cursor_cli: writes handoff markdown (truthful: no guaranteed headless Cursor automation).
@@ -440,8 +542,19 @@ def execute(
     if secret and x_octopus_bridge_key != secret:
         raise HTTPException(status_code=401, detail="bridge_auth_failed")
 
-    LAST_EXECUTE["at"] = _now_iso()
-    LAST_EXECUTE["last_error"] = None
+    with STATE_LOCK:
+        LAST_EXECUTE.clear()
+        LAST_EXECUTE.update(
+            {
+                "at": _now_iso(),
+                "phase": "received",
+                "task_id": payload.task_id,
+                "run_id": payload.run_id,
+                "agent_id": payload.agent_id,
+                "adapter_id": payload.adapter_id,
+                "last_error": None,
+            }
+        )
     _persist_state()
 
     adapter = payload.adapter_id
@@ -549,7 +662,8 @@ def execute(
         if not cmd:
             cmd = prompt or None
         if not cmd:
-            LAST_EXECUTE["last_error"] = "missing_shell_command"
+            with STATE_LOCK:
+                LAST_EXECUTE["last_error"] = "missing_shell_command"
             _persist_state()
             return {
                 "ok": False,
@@ -604,8 +718,7 @@ def execute(
                 "error": None if ok else f"exit_{p.returncode}",
             }
         except Exception as e:  # noqa: BLE001
-            LAST_EXECUTE["last_error"] = str(e)
-            _persist_state()
+            _record_last_execute(status="failed", integration_path="local_script", last_error=str(e), last_error_type=type(e).__name__)
             return {
                 "ok": False,
                 "version": BRIDGE_VERSION,
@@ -686,7 +799,9 @@ def submit_result(
     x_octopus_bridge_key: str | None = Header(default=None, alias="X-Octopus-Bridge-Key"),
 ):
     _require_bridge_key(x_octopus_bridge_key)
-    RESULTS.append(payload)
+    with STATE_LOCK:
+        RESULTS.append(payload)
+        del RESULTS[:-200]
     _persist_state()
     if payload.run_id:
         try:
@@ -715,4 +830,5 @@ def submit_result(
 @app.get("/tasks/results")
 def list_results(x_octopus_bridge_key: str | None = Header(default=None, alias="X-Octopus-Bridge-Key")):
     _require_bridge_key(x_octopus_bridge_key)
-    return {"version": BRIDGE_VERSION, "items": RESULTS[-50:]}
+    with STATE_LOCK:
+        return {"version": BRIDGE_VERSION, "items": RESULTS[-50:]}

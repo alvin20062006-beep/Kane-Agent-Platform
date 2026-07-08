@@ -1,6 +1,6 @@
-# Local Multi-Agent Control Plane — User Guide (v1.1)
+# Local Multi-Agent Control Plane — User Guide (v2.0)
 
-This guide targets **users** of the Kāne & Kanaloa platform (not just readers of the source code): what each entry point does, how to wire up the four kinds of external / local agents, how to test-run, and how to troubleshoot. Technical details and API inventory live in [`docs/EXTERNAL_AGENT_INTEGRATION.md`](docs/EXTERNAL_AGENT_INTEGRATION.md) and [`docs/API_ROUTE_INVENTORY.md`](docs/API_ROUTE_INVENTORY.md). v1.1 boundaries: [`docs/V1.1_LIMITATIONS.md`](docs/V1.1_LIMITATIONS.md).
+This guide targets **users** of the Kāne & Kanaloa platform (not just readers of the source code): what each entry point does, how to wire up the four kinds of external / local agents, how to test-run, and how to troubleshoot. Technical details and API inventory live in [`docs/EXTERNAL_AGENT_INTEGRATION.md`](docs/EXTERNAL_AGENT_INTEGRATION.md) and [`docs/API_ROUTE_INVENTORY.md`](docs/API_ROUTE_INVENTORY.md). v2.0 boundaries are described by the current Agent OS Foundation docs.
 
 ---
 
@@ -15,7 +15,7 @@ This guide targets **users** of the Kāne & Kanaloa platform (not just readers o
 | **`/cockpit`** | Cockpit: **dispatch work** from a conversational entry | Create tasks and drive them through assign / run | **Dispatch** (one of several entry points) |
 | **`/tasks`** | **Task list and creation** | Create tasks, track status, open details to view timeline and outputs | **Dispatch** + **status view** |
 | **`/settings`** | Global settings: API profiles, notification summaries, etc. | Configure model + keys, jump to notifications page | **Environment config** (account / model level) |
-| **`/notifications`** | Notification channel list and management | Inspect channels, enable/disable (within v1.1 limits) | **Status view** (notifications side) |
+| **`/notifications`** | Notification channel list and management | Inspect channels, enable/disable (within v2.0 limits) | **Status view** (notifications side) |
 
 **Mnemonic**: add a teammate at **`/agents/add`**, review the roster at **`/agent-fleet`**, edit one at **`/agent-fleet/[id]`**, fix bridge issues at **`/local-bridge`**, and drive the work from **`/tasks`** or **`/cockpit`**.
 
@@ -43,8 +43,8 @@ External operators only show **Direct (external)** so you never see modes you ca
 - **Where to add it**: **`/agents/add`** → pick the OpenClaw template → fill **Agent ID**, adapter / registration info → submit.
 - **Required fields**: at minimum a unique **Agent ID**; other fields follow the form's honest hints — the webhook depends on Bridge env, not on a single frontend string.
 - **How to test**: after saving, open **`/agent-fleet/[id]`** → use **Test connection / Test run**; a successful call advances task status and shows an output summary; if it is stuck in waiting / handoff, follow the UI hints to inspect the webhook and callback.
-- **What we claim in v1.1**: registration, test runs, status observation. Webhook path is **automated** when the environment is fully wired.
-- **Current limits**: without a configured webhook, we do **not** pretend we're fully automated. Multi-tenant isolation, production security, and SLAs are outside of v1.1 scope.
+- **What we claim in v2.0**: registration, test runs, status observation. Webhook path is **automated** when the environment is fully wired.
+- **Current limits**: without a configured webhook, we do **not** pretend we're fully automated. Multi-tenant isolation, production security, and SLAs are outside of v2.0 scope.
 
 ---
 

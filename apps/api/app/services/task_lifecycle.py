@@ -61,6 +61,7 @@ from ..store.repositories import (
 )
 from .notifications import deliver_watchdog_event
 from .advisor import upsert_advisor_suggestion
+from .memory_ledger import record_memory_item_event
 from .runtime_audit import (
     append_task_event,
     append_watchdog_issue,
@@ -74,6 +75,8 @@ from .runtime_audit import (
     now_iso,
     resolve_parent_run_id,
 )
+from .run_steps import complete_run_timeline, ensure_base_run_steps, mark_run_step
+from .task_status_reconciliation import reconcile_task_with_run
 
 
 def _now_iso() -> str:
@@ -181,6 +184,12 @@ def _upsert_task_memory(task: Task, run: Run, output: str | None, *, status: str
         created_at=_now_iso(),
     )
     memory_repo.upsert(memory)
+    record_memory_item_event(
+        memory,
+        event_type="task_result_recorded",
+        created_by="ai",
+        metadata={"status": status, "run_id": run.run_id},
+    )
 
 
 def _transition_task(task: Task, event: TaskEvent) -> Task:
@@ -294,6 +303,7 @@ def _pilot_advance_and_maybe_execute(task: Task, approval_note: str | None) -> d
             environment_summary=build_environment_summary(task2, agent),
         )
         runs_repo.upsert(run)
+        ensure_base_run_steps(run)
         task2 = task2.model_copy(update={"last_run_id": run_id, "updated_at": _now_iso()})
         tasks_repo.upsert(task2)
         _append_event(
@@ -303,6 +313,7 @@ def _pilot_advance_and_maybe_execute(task: Task, approval_note: str | None) -> d
             {"run_id": run_id, "agent_id": agent.agent_id, "parent_run_id": parent_run_id},
         )
         _append_run_log(run_id, 1, "info", "Pilot execute: run started", {"agent_id": agent.agent_id, "operator_note": approval_note})
+        mark_run_step(run_id, "execute", "running", agent_id=agent.agent_id)
         agents_repo.upsert(agent.model_copy(update={"status": AgentStatus.running, "last_heartbeat_at": _now_iso()}))
 
         adapter = agent.adapter_id or ("builtin_octopus" if agent.type == "builtin" else "unknown")
@@ -329,6 +340,7 @@ def _pilot_advance_and_maybe_execute(task: Task, approval_note: str | None) -> d
                 }
             )
             runs_repo.upsert(run2)
+            complete_run_timeline(run_id, succeeded=True)
             # Keep task running; summarize step will set final status.
             task3 = task2.model_copy(update={"result_summary": (res.output or "")[:2000], "result_payload": {"integration_path": res.integration_path, "meta": res.meta}, "last_error": None, "updated_at": _now_iso()})
             tasks_repo.upsert(task3)
@@ -354,6 +366,7 @@ def _pilot_advance_and_maybe_execute(task: Task, approval_note: str | None) -> d
                 }
             )
             runs_repo.upsert(run2)
+            complete_run_timeline(run_id, succeeded=False)
             task3 = _transition_task(task2, TaskEvent.task_failed)
             task3 = task3.model_copy(update={"status": TaskStatus.failed, "last_error": res.error, "updated_at": _now_iso()})
             tasks_repo.upsert(task3)
@@ -374,7 +387,9 @@ def _pilot_advance_and_maybe_execute(task: Task, approval_note: str | None) -> d
         next_step2 = next_step.model_copy(update={"status": ExecutionStepStatus.done, "updated_at": _now_iso(), "payload": summary})
         plan2 = plan.model_copy(update={"steps": [next_step2 if s.step_id == next_step.step_id else s for s in plan.steps], "updated_at": _now_iso()})
         execution_plans_repo.upsert(plan2)
-        # finalize task
+        if task.last_run_id:
+            mark_run_step(task.last_run_id, "summarize", "succeeded", output_ref=f"task:{task.task_id}:result_summary")
+        # Finalize the audit step before exposing terminal task status.
         task2 = _transition_task(task, TaskEvent.task_succeeded)
         tasks_repo.upsert(task2)
         _append_event(task.task_id, "task_succeeded", "Pilot summarize: finalized success", {"plan_id": plan2.plan_id})
@@ -526,6 +541,8 @@ def run_task(task_id: str) -> dict[str, Any]:
     task = ensure_task_correlation(task)
     if task.status in (TaskStatus.queued, TaskStatus.running, TaskStatus.waiting_approval) and task.last_run_id:
         existing_run = runs_repo.get(task.last_run_id)
+        if existing_run:
+            task = reconcile_task_with_run(task, existing_run, source="duplicate_run_request")
         key = make_receipt_key("run_request", task.task_id, task.last_run_id, task.status.value)
         finalize_processed_receipt(
             "run_request",
@@ -619,6 +636,8 @@ def run_task(task_id: str) -> dict[str, Any]:
             if task.last_run_id
             else None
         )
+        if existing_run:
+            reconcile_task_with_run(tasks_repo.get(task_id) or task, existing_run, source="claimed_duplicate_run_request")
         _append_event(
             task_id,
             "duplicate_run_request",
@@ -679,6 +698,10 @@ def retry_task(task_id: str) -> Task:
     if not task:
         raise HTTPException(status_code=404, detail="task_not_found")
     task = ensure_task_correlation(task)
+    if task.last_run_id:
+        last_run = runs_repo.get(task.last_run_id)
+        if last_run and last_run.status in {"succeeded", "failed"}:
+            task = reconcile_task_with_run(task, last_run, source="retry_request_preflight")
     if task.status == TaskStatus.assigned and task.retry_count > 0:
         _append_event(
             task_id,
@@ -788,6 +811,12 @@ def mark_failed(task_id: str, body: TaskFailBody) -> Task:
         }
     )
     tasks_repo.upsert(task)
+    if task.last_run_id:
+        run = runs_repo.get(task.last_run_id)
+        if run and run.status not in {"succeeded", "failed"}:
+            runs_repo.upsert(run.model_copy(update={"status": "failed", "finished_at": _now_iso(), "error": body.reason}))
+        if run:
+            complete_run_timeline(task.last_run_id, succeeded=False)
     _append_event(task_id, "operator_mark_failed", body.reason, None)
     _append_watchdog_event(
         "operator_mark_failed",
@@ -865,7 +894,7 @@ def get_timeline(
     watchdog_events.sort(key=lambda x: x.created_at)
     last_run = runs[0] if runs else None
     return {
-        "version": "1.1.0",
+        "version": "2.0.0",
         "task": task,
         "assignments": assignments,
         "events": events,
@@ -876,7 +905,7 @@ def get_timeline(
         "run_logs_total": logs_total,
         "orchestrator_context": find_master_context_for_platform_task(task_id),
         "supervision_summary": _build_supervision_summary(task, runs, watchdog_events, last_run),
-        "version": "1.1.0",
+        "version": "2.0.0",
     }
 
 
@@ -917,6 +946,7 @@ def bridge_complete(body: BridgeCompleteBody) -> dict[str, Any]:
         )
         return {"ok": True, "duplicate_callback": True, "task": task, "run": run}
     if run.status in ("succeeded", "failed"):
+        complete_run_timeline(run.run_id, succeeded=run.status == "succeeded")
         _append_event(
             b.task_id,
             "late_callback",
@@ -1041,6 +1071,7 @@ def bridge_complete(body: BridgeCompleteBody) -> dict[str, Any]:
                 }
             )
             runs_repo.upsert(run)
+            complete_run_timeline(run.run_id, succeeded=True)
             try:
                 task2 = _transition_task(task, TaskEvent.task_succeeded)
             except HTTPException:
@@ -1104,6 +1135,7 @@ def bridge_complete(body: BridgeCompleteBody) -> dict[str, Any]:
             }
         )
         runs_repo.upsert(run)
+        complete_run_timeline(run.run_id, succeeded=False)
         try:
             task2 = _transition_task(task, TaskEvent.task_failed)
         except HTTPException:

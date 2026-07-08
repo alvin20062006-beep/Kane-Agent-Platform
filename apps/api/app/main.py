@@ -11,6 +11,7 @@ from .routes.resources import router as resources_router
 from .routes.streams import router as streams_router
 from .routes.v2.platform import router as platform_router
 from .services.runtime_supervision import start_runtime_supervision_thread
+from .services.task_status_reconciliation import reconcile_all_tasks_with_latest_runs
 from .services.worker_queue import start_worker_thread
 from .settings_env import get_cors_allow_origins, get_runtime_supervision_enabled
 from .startup_timing import mark
@@ -20,6 +21,8 @@ from .version import PLATFORM_VERSION
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     mark("lifespan.begin")
+    reconcile_all_tasks_with_latest_runs(source="api_startup")
+    mark("task_reconciliation.done")
     start_worker_thread()
     mark("worker_thread.started")
     if get_runtime_supervision_enabled():
@@ -34,9 +37,9 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     mark("create_app.begin")
     app = FastAPI(
-        title="Octopus Platform API",
+        title="Kane Agent Platform API",
         version=PLATFORM_VERSION,
-        description="Kane / Kāne control-plane API: tasks, runs, conversations, skills, optional Local Bridge. "
+        description="Kane Agent Platform control-plane API: tasks, runs, conversations, skills, optional Local Bridge. "
         "Default file persistence; optional Postgres. Not a hardened multi-tenant SaaS by default.",
         lifespan=lifespan,
     )

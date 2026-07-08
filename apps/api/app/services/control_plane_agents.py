@@ -14,8 +14,11 @@ from ..models import (
     AgentStatus,
     TaskAssignBody,
     TaskCreateBody,
+    TaskStatus,
 )
-from ..store.repositories import agents_repo, tasks_repo
+from ..store.repositories import agents_repo, runs_repo, tasks_repo
+from .run_steps import mark_run_step
+from .runtime_audit import append_task_event, now_iso
 from .task_lifecycle import assign_task, create_task, run_task
 
 
@@ -42,7 +45,7 @@ def _default_capabilities(adapter_id: str) -> AgentCapabilities:
             supports_handoff=True,
             supports_callback=True,
         )
-    if adapter_id == "claude_code":
+    if adapter_id in ("claude_code", "codex_cli"):
         return AgentCapabilities(
             can_chat=False,
             can_code=True,
@@ -163,6 +166,69 @@ def _test_description(adapter_id: str) -> str:
     return "Generic agent connectivity test from Octopus control plane."
 
 
+def _active_handoff_blocker(agent_id: str, *, exclude_task_id: str) -> tuple[str, str] | None:
+    for task in tasks_repo.list():
+        if task.task_id == exclude_task_id or task.assigned_agent_id != agent_id:
+            continue
+        if task.status != TaskStatus.waiting_approval or not task.last_run_id:
+            continue
+        run = runs_repo.get(task.last_run_id)
+        if run and run.status == "running":
+            return task.task_id, run.run_id
+    return None
+
+
+def _mark_test_run_blocked_by_active_handoff(task_id: str, run_id: str, blocker: tuple[str, str]) -> None:
+    task = tasks_repo.get(task_id)
+    run = runs_repo.get(run_id)
+    if not task or not run:
+        return
+    blocker_task_id, blocker_run_id = blocker
+    reason = f"agent_handoff_already_waiting_approval:{blocker_task_id}"
+    ts = now_iso()
+    runs_repo.upsert(
+        run.model_copy(
+            update={
+                "status": "failed",
+                "finished_at": ts,
+                "error": reason,
+                "output_snapshot": {
+                    "status": "failed",
+                    "error": reason,
+                    "blocked_by_task_id": blocker_task_id,
+                    "blocked_by_run_id": blocker_run_id,
+                },
+            }
+        )
+    )
+    mark_run_step(run_id, "execute", "blocked", failure_id=f"task:{blocker_task_id}:waiting_approval")
+    mark_run_step(run_id, "summarize", "skipped", failure_id=f"task:{blocker_task_id}:waiting_approval")
+    tasks_repo.upsert(
+        task.model_copy(
+            update={
+                "status": TaskStatus.failed,
+                "last_error": reason,
+                "result_payload": {
+                    "error": reason,
+                    "blocked_by_task_id": blocker_task_id,
+                    "blocked_by_run_id": blocker_run_id,
+                    "needs_attention": True,
+                },
+                "needs_attention": True,
+                "attention_reason": "Agent already has an active handoff waiting for approval.",
+                "updated_at": ts,
+            }
+        )
+    )
+    append_task_event(
+        task_id,
+        "test_run_blocked_by_active_handoff",
+        "Agent test run blocked by an existing handoff awaiting approval",
+        correlation_id=task.correlation_id,
+        payload={"run_id": run_id, "blocked_by_task_id": blocker_task_id, "blocked_by_run_id": blocker_run_id},
+    )
+
+
 def start_agent_test_run(agent_id: str) -> dict[str, Any]:
     agent = agents_repo.get(agent_id)
     if not agent:
@@ -181,6 +247,10 @@ def start_agent_test_run(agent_id: str) -> dict[str, Any]:
     run_out = run_task(task.task_id)
     run = run_out.get("run")
     run_id = getattr(run, "run_id", None) if run is not None else None
+    if run_id and run_out.get("queued"):
+        blocker = _active_handoff_blocker(agent_id, exclude_task_id=task.task_id)
+        if blocker:
+            _mark_test_run_blocked_by_active_handoff(task.task_id, run_id, blocker)
     task2 = tasks_repo.get(task.task_id)
     return {
         "ok": True,

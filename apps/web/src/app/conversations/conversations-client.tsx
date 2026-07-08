@@ -279,6 +279,9 @@ export function ConversationsClient({ initialConversations, agents }: Props) {
   const isKanaloaOperator = operatorAgentId === "octopus_builtin";
   const operatorAgentName =
     agents.find((a) => a.agent_id === operatorAgentId)?.display_name ?? operatorAgentId;
+  const modelUnavailable = isKanaloaOperator && kanaloaLlmActive === false;
+  const sendDisabled = busy || !content.trim() || modelUnavailable;
+  const sendTitle = modelUnavailable ? t("conv.model.required_send_hint") : t("action.send_hint");
 
   // ---------------- actions ----------------
 
@@ -304,6 +307,10 @@ export function ConversationsClient({ initialConversations, agents }: Props) {
 
   const sendMessage = async () => {
     if (!selectedId || !content.trim()) return;
+    if (modelUnavailable) {
+      setErrorText(t("conv.model.required_message"));
+      return;
+    }
     setBusy(true);
     setErrorText("");
     setLastCandidateId(null);
@@ -864,6 +871,17 @@ export function ConversationsClient({ initialConversations, agents }: Props) {
                     {errorText}
                   </div>
                 ) : null}
+                {modelUnavailable ? (
+                  <div
+                    data-testid="conversation-model-inactive-notice"
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-[11px] text-amber-900"
+                  >
+                    <span>{t("conv.model.required_message")}</span>
+                    <Link href="/settings?cat=model" className="font-medium underline">
+                      {t("conv.model.go_configure")}
+                    </Link>
+                  </div>
+                ) : null}
 
                 <textarea
                   data-testid="conversation-message-input"
@@ -946,10 +964,10 @@ export function ConversationsClient({ initialConversations, agents }: Props) {
                     <button
                       data-testid="send-message-button"
                       type="button"
-                      disabled={busy || !content.trim()}
+                      disabled={sendDisabled}
                       onClick={sendMessage}
                       className="rounded-md bg-[var(--octo-royal-blue)] px-3 py-1.5 text-xs text-white disabled:opacity-50"
-                      title={t("action.send_hint")}
+                      title={sendTitle}
                     >
                       {t("action.send")}
                       <span className="ml-1 text-[10px] opacity-70">⌘⏎</span>

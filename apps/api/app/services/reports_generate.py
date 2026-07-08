@@ -63,7 +63,7 @@ def generate_comparison_report(*, limit_runs: int = 200) -> Report:
         return f"p50={p50:.2f}s n={len(xs2)}"
 
     lines: list[str] = []
-    lines.append("Octopus Platform — Real Comparison Report (v1.1)")
+    lines.append("Kane Agent Platform - Real Comparison Report (v2.0.0)")
     lines.append(f"generated_at: {_now_iso()}")
     lines.append("")
     lines.append("## Summary")

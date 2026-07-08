@@ -8,7 +8,7 @@ from ..models import Agent, ProcessedActionReceipt, Run, Task, TaskEventRecord, 
 from ..store.repositories import processed_action_receipts_repo, runs_repo, task_events_repo, tasks_repo, watchdog_events_repo
 
 
-APP_VERSION = "1.1.0"
+APP_VERSION = "2.0.0"
 DEFAULT_RECEIPT_CLAIM_TTL_SECONDS = 30
 
 
