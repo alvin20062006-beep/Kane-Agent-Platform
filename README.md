@@ -8,7 +8,51 @@ Kane Agent Platform is a local-first Agent Operating System for agent execution.
 
 Kane is not a Memory Framework, a RAG Framework, or a Workflow Engine. Memory, retrieval, MoA-style reference review, verification, repair, and UI audit surfaces exist to support agent execution.
 
-## What Is Kane
+## ⭐ Why Kane?
+
+Modern agent systems are becoming powerful, but many of them still hide the most important part of the system: execution.
+
+Planning, retrieval, verification, repair, memory updates, tool calls, and agent decisions are often buried inside opaque loops. When something fails, it is hard to answer the basic engineering questions:
+
+- What happened?
+- Why did the agent choose this path?
+- What evidence did it use?
+- What was verified?
+- What failed?
+- What changed after the failure?
+
+Kane was designed from a different starting point.
+
+Instead of treating agent execution as a black box, Kane turns execution into a first-class platform model.
+
+A task is not just "sent to an agent."
+
+It becomes:
+
+- a Task,
+- a Run,
+- a RunStep timeline,
+- linked evidence,
+- verifier records,
+- repair attempts,
+- memory events,
+- and final status reconciliation.
+
+This gives Kane a different shape from prompt-first agent systems.
+
+The important parts of execution are not hidden in prompts, temporary logs, or agent-specific runtime state. They become platform records that can be inspected, queried, verified, repaired, and improved over time.
+
+Kane is not built around one model, one prompt, or one orchestration style.
+
+It is built around a durable execution foundation that can support built-in agents, local adapters, handoff workflows, MoA-style reference review, memory compilation, verifier records, and repair loops without collapsing everything into one opaque agent loop.
+
+The goal is simple:
+
+**Make agent execution understandable, inspectable, and improvable.**
+
+Not just executable.
+
+## ⭐ What Is Kane
 
 Kane is the platform. It owns the control plane, Task -> Run -> RunStep execution model, worker queue, memory ledger, retrieval services, verifier and repair records, background compiler, Local Bridge integration, and Web UI.
 
