@@ -2,6 +2,10 @@
 
 Kane Agent Platform is a local-first Agent Operating System for agent execution. It combines a Next.js Web UI, FastAPI control plane, Local Bridge, agent adapters, task execution loop, memory audit, retrieval, verifier records, repair records, and background memory compilation into one local control surface.
 
+
+![Agent Fleet](docs/images/agent-fleet-en.png)
+
+
 Kane is not a Memory Framework, a RAG Framework, or a Workflow Engine. Memory, retrieval, MoA-style reference review, verification, repair, and UI audit surfaces exist to support agent execution.
 
 ## What Is Kane
@@ -40,10 +44,6 @@ Bridge: 8010
 ```
 
 Port `8011` is not started by the default stack. It is reserved for optional secondary or acceptance-test bridge processes. The stop and verification scripts check it alongside `3000`, `8000`, and `8010` so a secondary local bridge cannot remain running silently.
-
-## Screenshots
-
-![Agent Fleet](docs/images/agent-fleet-en.png)
 
 ## Quick Start
 
