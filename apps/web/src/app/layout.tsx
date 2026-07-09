@@ -7,9 +7,8 @@ import { LocaleProvider } from "@/lib/i18n/LocaleProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Kāne · AI Agent Platform",
-  description:
-    "Kāne & Kanaloa — an AI agent platform with persisted task lifecycle, bridge workflow, and monitoring.",
+  title: "Kane - AI Agent Platform",
+  description: "Kane Agent Platform v2.0.0 local-first AI agent control plane.",
 };
 
 export default function RootLayout({
@@ -19,15 +18,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="h-full antialiased">
-      <body className="h-full bg-zinc-50 text-zinc-950">
+      <body className="h-full overflow-hidden bg-[var(--kane-walnut-ink)] p-[10px] text-[var(--foreground)]">
         <LocaleProvider>
-          <div className="flex h-full min-h-screen">
-            <aside className="w-56 shrink-0 border-r border-[var(--octo-blue-deep)] bg-white">
+          <div className="kane-app-frame kane-shell-bg flex h-[calc(100vh-20px)] min-h-0 overflow-hidden rounded-[28px]">
+            <aside className="kane-sidebar-panel relative z-10 w-56 shrink-0 overflow-hidden rounded-[26px] border-r border-[var(--kane-border-strong)] bg-[var(--kane-sidebar)]">
               <SidebarNav />
             </aside>
             <div className="flex min-w-0 flex-1 flex-col">
               <TopBar />
-              <main className="flex-1 min-h-0 overflow-y-auto">{children}</main>
+              <main className="min-h-0 flex-1 overflow-y-auto bg-[var(--kane-page)]">{children}</main>
             </div>
           </div>
         </LocaleProvider>

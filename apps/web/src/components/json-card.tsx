@@ -1,6 +1,6 @@
 export function JsonCard({ data }: { data: unknown }) {
   return (
-    <pre className="rounded-lg border border-zinc-200 bg-white p-4 text-xs overflow-auto">
+    <pre className="kane-paper overflow-auto p-4 text-xs text-[var(--foreground)]">
       {JSON.stringify(data, null, 2)}
     </pre>
   );

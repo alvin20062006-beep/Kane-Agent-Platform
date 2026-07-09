@@ -21,7 +21,7 @@ export default async function AgentFleetPage() {
     );
   } catch (error) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="mx-auto max-w-[1500px] space-y-[var(--kane-section-gap)] px-[var(--kane-page-pad-x)] py-[var(--kane-page-pad-y)]">
         <FleetHeader />
         <ApiError error={error} />
       </div>
@@ -29,7 +29,7 @@ export default async function AgentFleetPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="mx-auto max-w-[1500px] space-y-[var(--kane-section-gap)] px-[var(--kane-page-pad-x)] py-[var(--kane-page-pad-y)]">
       <FleetHeader />
       <AgentFleetClusterView details={details} />
     </div>

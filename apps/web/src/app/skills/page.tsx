@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -127,7 +127,6 @@ function RowMenu({ items }: { items: MenuItem[] }) {
     </div>
   );
 }
-
 // ---------- Card ----------
 
 function SkillIcon({ skill }: { skill: Skill }) {
@@ -208,7 +207,7 @@ function SkillCard({
         </div>
       </button>
 
-      {/* Hover / always-visible ⋯ menu at top-right */}
+      {/* Hover / always-visible menu at top-right */}
       <div className="absolute right-2 top-2">
         <RowMenu items={menuItems} />
       </div>
@@ -299,7 +298,7 @@ function SkillDetail({
                 )}
               </div>
               <div className="mt-0.5 font-mono text-[11px] text-zinc-400">
-                {skill.skill_id} · v{skill.version}
+                {skill.skill_id} 路 v{skill.version}
               </div>
             </div>
           </div>
@@ -346,7 +345,7 @@ function SkillDetail({
               <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs text-zinc-700">
                 <div className="font-medium text-zinc-800">Advisor suggestion</div>
                 <div className="mt-2">
-                  {advisorSuggestion.title} 路 confidence={advisorSuggestion.confidence ?? "low"} 路 occurrences=
+                  {advisorSuggestion.title} - confidence={advisorSuggestion.confidence ?? "low"} - occurrences=
                   {advisorSuggestion.occurrence_count ?? 1}
                 </div>
                 <div className="mt-2 grid gap-2 md:grid-cols-2">
@@ -418,7 +417,6 @@ function SkillDetail({
         <div className="sticky bottom-0 border-t border-zinc-200 bg-white px-5 py-3">
           <div className="flex flex-wrap items-center justify-end gap-2">
             <span className="text-[10px] text-zinc-400">
-              {/* Read-only hint — all mutating actions live in the ⋯ menu */}
               {t("skills.detail_title")}
             </span>
             <button

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useMemo, useState } from "react";
 
@@ -42,7 +42,6 @@ function renderPolicyPreview(suggestion: AdvisorSuggestion) {
     </div>
   );
 }
-
 export function PoliciesClient({
   items,
   suggestions,
@@ -232,7 +231,7 @@ export function PoliciesClient({
             <div className="mt-2 text-zinc-700">
               Runtime keeps policy resolution lightweight and explicit:
               <div className="mt-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 font-mono text-xs">
-                agent / skill / account 路 global 路 fallback default
+                agent / skill / account - global - fallback default
               </div>
             </div>
           </div>
@@ -364,7 +363,7 @@ $body | curl.exe -s -X POST http://127.0.0.1:8000/policies -H \"content-type: ap
                     <td className="px-4 py-3">
                       <span className="text-xs rounded-full border border-zinc-200 px-2 py-1">{policy.mode}</span>
                     </td>
-                    <td className="px-4 py-3 text-zinc-700">{policy.note ?? "—"}</td>
+                    <td className="px-4 py-3 text-zinc-700">{policy.note ?? "-"}</td>
                   </tr>
                 ))}
               </tbody>

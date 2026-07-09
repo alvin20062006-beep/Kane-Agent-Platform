@@ -151,7 +151,7 @@ function HealthIcon({
     <Link
       href="/watchdog"
       title={`${t("topbar.watchdog")}: ${label}${openIssues > 0 ? ` · ${openIssues} ${t("topbar.issues")}` : ""}`}
-      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-blue-50 hover:bg-white/15 transition-colors"
+      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--kane-topbar-text)] hover:bg-white/10 transition-colors"
     >
       <span className={cx("inline-block h-2 w-2 rounded-full", dot)} />
       <span className="hidden sm:inline">{label}</span>
@@ -177,7 +177,7 @@ function HandoffIcon({
       href="/local-bridge"
       data-testid="topbar-handoffs"
       title={t("topbar.handoffs").replace("{n}", String(count))}
-      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-blue-50 hover:bg-white/15 transition-colors"
+      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--kane-topbar-text)] hover:bg-white/10 transition-colors"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -204,7 +204,7 @@ function ConnectAgentIcon({
       href="/local-bridge?connect=1"
       data-testid="topbar-connect-agent"
       title={t("topbar.connect_agent")}
-      className="flex items-center gap-1 rounded-md border border-amber-300/60 bg-amber-500/20 px-2 py-1 text-xs font-medium text-amber-50 hover:bg-amber-500/30 transition-colors"
+      className="flex items-center gap-1 rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs font-medium text-[var(--kane-topbar-text)] hover:bg-white/15 transition-colors"
     >
       <span className="text-[10px]">+</span>
       <span className="hidden sm:inline">{t("topbar.connect_agent_short")}</span>
@@ -225,7 +225,7 @@ function OrchestratorIcon({
       href="/orchestrator"
       data-testid="topbar-orchestrator"
       title={t("topbar.orchestrator_active").replace("{n}", String(count))}
-      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-blue-50 hover:bg-white/15 transition-colors"
+      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--kane-topbar-text)] hover:bg-white/10 transition-colors"
     >
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
         <circle cx="12" cy="12" r="3" />
@@ -251,7 +251,7 @@ function BridgeIcon({ online, t }: BridgeSummary & { t: (k: string, fb?: string)
     <Link
       href={online === false ? "/local-bridge?connect=1" : "/local-bridge"}
       title={`${t("topbar.bridge")}: ${state}`}
-      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-blue-50 hover:bg-white/15 transition-colors"
+      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--kane-topbar-text)] hover:bg-white/10 transition-colors"
     >
       <svg
         width="14"
@@ -262,7 +262,7 @@ function BridgeIcon({ online, t }: BridgeSummary & { t: (k: string, fb?: string)
         strokeWidth="2"
         strokeLinecap="round"
         strokeLinejoin="round"
-        className={online === null ? "text-blue-100" : online ? "text-green-600" : "text-red-400"}
+        className={online === null ? "text-white/70" : online ? "text-emerald-300" : "text-red-300"}
         aria-hidden
       >
         <path d="M12 22V12" />
@@ -283,7 +283,7 @@ function AgentsIcon({ total, anomalies, t }: AgentsSummary & { t: (k: string, fb
     <Link
       href="/agent-fleet"
       title={`${t("nav.agents")}: ${total} · ${t("topbar.anomalies")} ${anomalies}`}
-      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-blue-50 hover:bg-white/15 transition-colors"
+      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--kane-topbar-text)] hover:bg-white/10 transition-colors"
     >
       <svg
         width="14"
@@ -315,7 +315,7 @@ function MemoryCandidateIcon({ pending, t }: MemoryCandidateSummary & { t: (k: s
     <Link
       href="/memory?tab=candidate"
       title={`${t("topbar.memory_candidates")}: ${pending}`}
-      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-blue-50 hover:bg-white/15 transition-colors"
+      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--kane-topbar-text)] hover:bg-white/10 transition-colors"
     >
       <svg
         width="14"
@@ -347,7 +347,7 @@ function NotifIcon({ recent, t }: NotifSummary & { t: (k: string, fb?: string) =
     <Link
       href="/notifications"
       title={`${t("nav.settings")}: ${recent}`}
-      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-blue-50 hover:bg-white/15 transition-colors"
+      className="relative flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-[var(--kane-topbar-text)] hover:bg-white/10 transition-colors"
     >
       <svg
         width="14"
@@ -383,7 +383,7 @@ function LanguageToggle() {
       onClick={() => setLocale(next)}
       title={t("topbar.switch_language")}
       aria-label={t("topbar.switch_language")}
-      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-blue-50 hover:bg-white/15 transition-colors"
+      className="flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-[var(--kane-topbar-text)] hover:bg-white/10 transition-colors"
     >
       <svg
         width="14"
@@ -439,8 +439,8 @@ export function TopBar() {
   const needsConnectNudge = agentsSummary.external === 0;
 
   return (
-    <header className="flex h-12 items-center justify-between border-b border-[var(--octo-blue-deep)] bg-[var(--octo-blue)] px-4">
-      <div className="min-w-0 truncate text-sm font-semibold text-white">
+    <header className="kane-topbar-surface relative flex h-[86px] items-center justify-between overflow-hidden border-b border-[rgba(255,246,231,0.18)] px-10 shadow-[0_10px_24px_rgba(47,22,8,0.18)]">
+      <div className="min-w-0 truncate text-[21px] font-semibold text-[var(--kane-topbar-text)] drop-shadow-[0_0_10px_rgba(255,237,206,0.42)]">
         {pageTitle}
       </div>
 

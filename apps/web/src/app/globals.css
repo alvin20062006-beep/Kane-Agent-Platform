@@ -1,17 +1,53 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f6ead8;
+  --foreground: #2d2118;
 
-  /* Octopus brand colors — inspired by the Kazakhstan flag */
-  --octo-blue: #00AFCA;        /* Kazakhstan sky blue */
-  --octo-blue-deep: #0E83A8;   /* darker hover */
-  --octo-blue-soft: #E6F6F9;   /* light tint for backgrounds */
-  --octo-yellow: #FEC50B;      /* Kazakhstan gold */
-  --octo-yellow-soft: #FFF6D9; /* light tint */
-  --octo-royal-blue: #4169E1;  /* requested active/select color */
-  --octo-royal-blue-soft: #E6ECFF;
+  --kane-page: #f8eddd;
+  --kane-page-deep: #efd5b5;
+  --kane-paper: #fff8ee;
+  --kane-paper-strong: #fff1dc;
+  --kane-paper-warm: #ffead0;
+  --kane-sidebar: #fff3df;
+  --kane-border: #e7cbaa;
+  --kane-border-strong: #d8b386;
+  --kane-hairline: rgba(120, 66, 15, 0.14);
+  --kane-muted: #765b45;
+  --kane-walnut: #512707;
+  --kane-walnut-deep: #2f1608;
+  --kane-walnut-ink: #241207;
+  --kane-walnut-soft: #78420f;
+  --kane-amber: #e87613;
+  --kane-amber-deep: #b94d08;
+  --kane-amber-soft: #fff0d8;
+  --kane-moss: #2c7a3f;
+  --kane-moss-soft: #ddf7e6;
+  --kane-danger: #b42318;
+  --kane-danger-soft: #fff0ec;
+  --kane-topbar-text: #fff6e7;
+  --kane-page-pad-x: 4.25rem;
+  --kane-page-pad-y: 2rem;
+  --kane-section-gap: 1.25rem;
+  --kane-card-pad: 1.25rem;
+  --kane-title-size: 1.375rem;
+  --kane-title-line: 1.22;
+  --kane-body-size: 0.875rem;
+  --kane-caption-size: 0.75rem;
+  --kane-radius-card: 0.75rem;
+  --kane-radius-control: 0.5rem;
+  --kane-shadow-soft: 0 18px 45px rgba(81, 39, 7, 0.09);
+  --kane-shadow-card: 0 1px 0 rgba(255, 255, 255, 0.62) inset, 0 14px 34px rgba(81, 39, 7, 0.075);
+  --kane-shadow-shell: 12px 0 34px rgba(81, 39, 7, 0.14);
+
+  /* Legacy variables are mapped to the v2 Kane palette for compatibility. */
+  --octo-blue: var(--kane-walnut);
+  --octo-blue-deep: var(--kane-walnut-deep);
+  --octo-blue-soft: var(--kane-amber-soft);
+  --octo-yellow: var(--kane-amber);
+  --octo-yellow-soft: var(--kane-amber-soft);
+  --octo-royal-blue: var(--kane-amber);
+  --octo-royal-blue-soft: var(--kane-moss-soft);
 }
 
 @theme inline {
@@ -20,7 +56,6 @@
   --font-sans: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   --font-mono: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
 
-  /* Expose brand colors to Tailwind utilities */
   --color-octo-blue: var(--octo-blue);
   --color-octo-blue-deep: var(--octo-blue-deep);
   --color-octo-blue-soft: var(--octo-blue-soft);
@@ -30,24 +65,368 @@
   --color-octo-royal-blue-soft: var(--octo-royal-blue-soft);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-size: var(--kane-body-size);
+  line-height: 1.5;
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  background-image:
+    radial-gradient(circle at 12% 0%, rgba(232, 118, 19, 0.08), transparent 30rem),
+    radial-gradient(circle at 88% 12%, rgba(44, 122, 63, 0.07), transparent 28rem),
+    linear-gradient(180deg, #fff7eb 0%, var(--kane-page) 100%);
 }
 
-/* Utility classes for brand accents (used sparingly) */
+.kane-page-header {
+  margin-bottom: var(--kane-section-gap);
+}
+
+.kane-page-title {
+  color: var(--kane-walnut);
+  font-size: var(--kane-title-size);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: var(--kane-title-line);
+}
+
+.kane-page-subtitle {
+  margin-top: 0.35rem;
+  max-width: 68rem;
+  color: var(--kane-muted);
+  font-size: var(--kane-body-size);
+  line-height: 1.55;
+}
+
+::selection {
+  background: rgba(232, 118, 19, 0.22);
+}
+
+.kane-shell-bg {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255, 248, 238, 0.52), transparent 20rem),
+    radial-gradient(circle at 88% 6%, rgba(120, 66, 15, 0.08), transparent 24rem),
+    var(--kane-page);
+}
+
+.kane-app-frame {
+  border: 1px solid rgba(95, 45, 12, 0.72);
+  background:
+    radial-gradient(circle at 34% 5%, rgba(143, 83, 26, 0.5), transparent 21rem),
+    linear-gradient(180deg, var(--kane-walnut-soft) 0 86px, var(--kane-page) 86px 100%);
+  box-shadow:
+    0 0 0 1px rgba(20, 9, 3, 0.72),
+    0 22px 70px rgba(20, 9, 3, 0.48);
+}
+
+.kane-app-frame.kane-shell-bg {
+  background:
+    radial-gradient(circle at 36% 4%, rgba(143, 83, 26, 0.46), transparent 22rem),
+    radial-gradient(circle at 88% 0%, rgba(255, 196, 115, 0.08), transparent 24rem),
+    linear-gradient(180deg, #6f3c12 0, var(--kane-walnut) 54px, var(--kane-walnut-deep) 86px, var(--kane-page) 86px);
+}
+
+.kane-sidebar-panel {
+  background:
+    radial-gradient(circle at 5% 0%, rgba(255, 255, 255, 0.74), transparent 18rem),
+    linear-gradient(180deg, #fff8ee 0%, #fff1dc 100%);
+  box-shadow:
+    7px 0 0 rgba(91, 44, 12, 0.86) inset,
+    1px 0 0 rgba(255, 255, 255, 0.88) inset,
+    -1px 0 0 rgba(120, 66, 15, 0.18) inset,
+    0 0 0 1px rgba(122, 66, 20, 0.34),
+    16px 0 32px rgba(81, 39, 7, 0.2),
+    34px 0 64px rgba(81, 39, 7, 0.13);
+}
+
+.kane-sidebar-panel::after {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  right: -1px;
+  top: 1.2rem;
+  bottom: 1.2rem;
+  width: 1px;
+  border-radius: 999px;
+  background: linear-gradient(
+    180deg,
+    transparent,
+    rgba(120, 66, 15, 0.34) 16%,
+    rgba(120, 66, 15, 0.2) 82%,
+    transparent
+  );
+}
+
+.kane-topbar-surface {
+  background:
+    radial-gradient(circle at 22% 0%, rgba(159, 96, 30, 0.38), transparent 18rem),
+    radial-gradient(circle at 72% 18%, rgba(255, 189, 95, 0.08), transparent 20rem),
+    linear-gradient(180deg, #754116 0%, var(--kane-walnut) 54%, var(--kane-walnut-deep) 100%);
+  color: var(--kane-topbar-text);
+}
+
+.kane-topbar-surface::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(ellipse at 18% 20%, rgba(255, 239, 211, 0.035), transparent 34%),
+    repeating-linear-gradient(125deg, rgba(255, 239, 211, 0.028) 0 1px, transparent 1px 18px);
+  opacity: 0.54;
+}
+
+.kane-card {
+  border: 1px solid var(--kane-border);
+  border-radius: var(--kane-radius-card);
+  background:
+    radial-gradient(circle at 12% 0%, rgba(255, 255, 255, 0.62), transparent 18rem),
+    linear-gradient(180deg, rgba(255, 250, 242, 0.98), rgba(255, 242, 222, 0.94));
+  box-shadow: var(--kane-shadow-card);
+}
+
+.kane-paper {
+  border: 1px solid var(--kane-border);
+  border-radius: var(--kane-radius-card);
+  background:
+    radial-gradient(circle at 0 0, rgba(255, 255, 255, 0.55), transparent 16rem),
+    rgba(255, 248, 238, 0.92);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.55) inset;
+}
+
+.kane-button-primary {
+  background: linear-gradient(180deg, var(--kane-amber), var(--kane-amber-deep));
+  color: white;
+  box-shadow: 0 8px 18px rgba(184, 77, 8, 0.18);
+}
+
+.kane-button-secondary {
+  border: 1px solid var(--kane-border);
+  background: linear-gradient(180deg, rgba(255, 250, 242, 0.92), rgba(255, 237, 210, 0.88));
+  color: var(--kane-walnut);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+}
+
+.kane-checkbox {
+  accent-color: var(--kane-amber);
+}
+
 .octo-accent-left {
   box-shadow: inset 3px 0 0 var(--octo-blue);
 }
+
 .octo-ring-focus:focus-visible {
-  outline: 2px solid var(--octo-blue);
+  outline: 2px solid var(--kane-moss);
   outline-offset: 2px;
+}
+
+* {
+  scrollbar-color: rgba(81, 39, 7, 0.34) rgba(255, 243, 223, 0.78);
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 243, 223, 0.82);
+  border-left: 1px solid rgba(216, 179, 134, 0.45);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(81, 39, 7, 0.34);
+  border: 2px solid rgba(255, 243, 223, 0.92);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(81, 39, 7, 0.52);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  border-color: var(--kane-border);
+  border-radius: var(--kane-radius-control);
+  background-color: rgba(255, 250, 242, 0.84);
+  color: var(--foreground);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.58) inset;
+}
+
+main {
+  color: var(--foreground);
+}
+
+main > .p-6,
+main > .space-y-6.p-6,
+main > .p-6.space-y-6 {
+  padding: var(--kane-page-pad-y) var(--kane-page-pad-x);
+}
+
+main .space-y-6 > :not([hidden]) ~ :not([hidden]) {
+  margin-top: var(--kane-section-gap);
+}
+
+main h1,
+main .text-xl.font-semibold.tracking-tight,
+main .text-xl.font-semibold {
+  color: var(--kane-walnut);
+  font-size: var(--kane-title-size);
+  font-weight: 650;
+  letter-spacing: 0;
+  line-height: var(--kane-title-line);
+}
+
+main p,
+main .text-sm {
+  line-height: 1.55;
+}
+
+main .text-xs {
+  font-size: var(--kane-caption-size);
+  line-height: 1.45;
+}
+
+main .rounded-lg.border,
+main .rounded-md.border,
+main .rounded-xl.border {
+  border-color: var(--kane-border);
+  background-color: rgba(255, 248, 238, 0.88);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.58) inset, 0 12px 30px rgba(81, 39, 7, 0.055);
+}
+
+main button.rounded-md,
+main a.rounded-md {
+  border-radius: var(--kane-radius-control);
+}
+
+.kane-composer-control {
+  display: inline-flex;
+  min-width: 7.625rem;
+  height: 2.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border: 1px solid var(--kane-border);
+  border-radius: 0.625rem;
+  background: rgba(255, 250, 242, 0.9);
+  color: var(--kane-walnut);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.62) inset;
+  transition:
+    border-color 150ms ease,
+    background-color 150ms ease,
+    color 150ms ease,
+    box-shadow 150ms ease;
+}
+
+.kane-composer-control:hover {
+  border-color: var(--kane-border-strong);
+  background: rgba(255, 244, 226, 0.96);
+}
+
+.kane-composer-control:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.kane-composer-control[data-state="on"] {
+  border-color: rgba(232, 118, 19, 0.42);
+  background: var(--kane-amber-soft);
+  color: var(--kane-amber-deep);
+}
+
+.kane-composer-control__icon,
+.kane-composer-control__suffix {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1rem;
+  font-size: 0.875rem;
+  line-height: 1;
+}
+
+.kane-composer-control__label {
+  line-height: 1;
+  white-space: nowrap;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--kane-amber);
+  outline: 2px solid rgba(232, 118, 19, 0.18);
+  outline-offset: 1px;
+}
+
+/* Compatibility layer for older pages still using neutral Tailwind colors. */
+.bg-white {
+  background-color: rgba(255, 248, 238, 0.86);
+}
+
+.bg-zinc-50,
+.bg-zinc-100 {
+  background-color: rgba(255, 241, 220, 0.64);
+}
+
+.border-zinc-100,
+.border-zinc-200,
+.border-zinc-300 {
+  border-color: var(--kane-border);
+}
+
+.text-zinc-950,
+.text-zinc-900,
+.text-zinc-800 {
+  color: var(--kane-walnut);
+}
+
+.text-zinc-700,
+.text-zinc-600,
+.text-zinc-500 {
+  color: var(--kane-muted);
+}
+
+.bg-zinc-900,
+.bg-zinc-950 {
+  background-color: var(--kane-walnut);
+}
+
+.hover\:bg-zinc-50:hover,
+.hover\:bg-zinc-100:hover {
+  background-color: rgba(255, 240, 216, 0.9);
+}
+
+.hover\:border-zinc-400:hover {
+  border-color: var(--kane-amber);
+}
+
+.kane-grain {
+  position: relative;
+}
+
+.kane-grain::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background-image:
+    radial-gradient(circle at 20% 20%, rgba(81, 39, 7, 0.035) 0 1px, transparent 1px),
+    radial-gradient(circle at 70% 35%, rgba(232, 118, 19, 0.025) 0 1px, transparent 1px);
+  background-size: 18px 18px, 23px 23px;
+  opacity: 0.55;
 }

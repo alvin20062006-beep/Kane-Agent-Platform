@@ -20,18 +20,18 @@ export type FleetDetail = {
 function badge(text: string, tone: "ok" | "warn" | "bad" | "neutral") {
   const cls =
     tone === "ok"
-      ? "bg-emerald-50 text-emerald-900 border-emerald-200"
+      ? "border-emerald-200 bg-[var(--kane-moss-soft)] text-[var(--kane-moss)]"
       : tone === "warn"
-        ? "bg-amber-50 text-amber-900 border-amber-200"
+        ? "border-amber-200 bg-[var(--kane-amber-soft)] text-[var(--kane-amber-deep)]"
         : tone === "bad"
-          ? "bg-red-50 text-red-900 border-red-200"
-          : "bg-zinc-50 text-zinc-800 border-zinc-200";
+          ? "border-red-200 bg-[var(--kane-danger-soft)] text-[var(--kane-danger)]"
+          : "border-[var(--kane-border)] bg-white/55 text-[var(--foreground)]";
   return (
-    <span className={`rounded-full border px-2 py-0.5 text-[11px] font-medium ${cls}`}>{text}</span>
+    <span className={`rounded-full border px-2.5 py-1 text-[var(--kane-caption-size)] font-medium ${cls}`}>
+      {text}
+    </span>
   );
 }
-
-// ---------------------- RowMenu ----------------------
 
 type MenuItem =
   | {
@@ -46,6 +46,7 @@ type MenuItem =
 function RowMenu({ items, align = "right" }: { items: MenuItem[]; align?: "left" | "right" }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const onDocClick = (e: MouseEvent) => {
@@ -67,7 +68,7 @@ function RowMenu({ items, align = "right" }: { items: MenuItem[]; align?: "left"
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+        className="flex h-7 w-7 items-center justify-center rounded-md text-[var(--kane-muted)] hover:bg-[var(--kane-amber-soft)] hover:text-[var(--kane-walnut)]"
         aria-label="more"
         aria-haspopup="menu"
         aria-expanded={open}
@@ -81,13 +82,14 @@ function RowMenu({ items, align = "right" }: { items: MenuItem[]; align?: "left"
       {open && (
         <div
           role="menu"
-          className={`absolute z-40 mt-1 min-w-[200px] rounded-md border border-zinc-200 bg-white py-1 shadow-lg ${
+          className={`absolute z-40 mt-1 min-w-[200px] rounded-md border border-[var(--kane-border)] bg-[var(--kane-paper)] py-1 shadow-lg ${
             align === "right" ? "right-0" : "left-0"
           }`}
         >
           {items.map((item, idx) => {
-            if ("separator" in item)
-              return <div key={idx} className="my-1 border-t border-zinc-100" />;
+            if ("separator" in item) {
+              return <div key={idx} className="my-1 border-t border-[var(--kane-border)]" />;
+            }
             return (
               <button
                 key={idx}
@@ -100,7 +102,9 @@ function RowMenu({ items, align = "right" }: { items: MenuItem[]; align?: "left"
                 }}
                 title={item.hint}
                 className={`flex w-full items-center justify-between px-3 py-1.5 text-left text-xs transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
-                  item.danger ? "text-red-600 hover:bg-red-50" : "text-zinc-700 hover:bg-zinc-50"
+                  item.danger
+                    ? "text-[var(--kane-danger)] hover:bg-[var(--kane-danger-soft)]"
+                    : "text-[var(--foreground)] hover:bg-white/70"
                 }`}
               >
                 <span>{item.label}</span>
@@ -112,8 +116,6 @@ function RowMenu({ items, align = "right" }: { items: MenuItem[]; align?: "left"
     </div>
   );
 }
-
-// ---------------------- Bind profile modal ----------------------
 
 function BindProfileDialog({
   agent,
@@ -159,27 +161,29 @@ function BindProfileDialog({
       <div
         role="dialog"
         aria-modal="true"
-        className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-zinc-200 bg-white shadow-xl"
+        className="kane-card fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 shadow-xl"
       >
         <div className="space-y-3 p-5">
-          <div className="text-sm font-semibold">{t("action.bind_profile")}</div>
-          <div className="text-xs text-zinc-500">
+          <div className="text-sm font-semibold text-[var(--kane-walnut)]">
+            {t("action.bind_profile")}
+          </div>
+          <div className="text-xs text-[var(--kane-muted)]">
             {agent.display_name} <span className="font-mono">({agent.agent_id})</span>
           </div>
           {err && (
-            <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+            <div className="rounded-md border border-red-200 bg-[var(--kane-danger-soft)] px-3 py-2 text-xs text-[var(--kane-danger)]">
               {err}
             </div>
           )}
           <select
             value={pid}
             onChange={(e) => setPid(e.target.value)}
-            className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
+            className="w-full rounded-md border border-[var(--kane-border)] bg-white/75 px-3 py-2 text-sm text-[var(--foreground)]"
           >
-            <option value="">—</option>
+            <option value="">-</option>
             {profiles.map((p) => (
               <option key={p.profile_id} value={p.profile_id}>
-                {p.name} · {p.provider} · {p.model}
+                {p.name} - {p.provider} - {p.model}
                 {p.is_default ? " (default)" : ""}
               </option>
             ))}
@@ -188,7 +192,7 @@ function BindProfileDialog({
             <button
               type="button"
               onClick={onClose}
-              className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs text-zinc-700 hover:bg-zinc-50"
+              className="kane-button-secondary rounded-md px-3 py-1.5 text-xs hover:bg-white"
             >
               {t("action.cancel")}
             </button>
@@ -196,7 +200,7 @@ function BindProfileDialog({
               type="button"
               disabled={busy || !pid}
               onClick={bind}
-              className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+              className="rounded-md bg-[var(--kane-walnut)] px-3 py-1.5 text-xs text-white disabled:opacity-50"
             >
               {busy ? t("common.saving") : t("action.save")}
             </button>
@@ -206,8 +210,6 @@ function BindProfileDialog({
     </>
   );
 }
-
-// ---------------------- Main view ----------------------
 
 export function AgentFleetClusterView({ details }: { details: FleetDetail[] }) {
   const t = useT();
@@ -266,7 +268,7 @@ export function AgentFleetClusterView({ details }: { details: FleetDetail[] }) {
         task_status?: string;
         ok?: boolean;
       }>(`/agents/${encodeURIComponent(agent.agent_id)}/test-run`);
-      flash(`Test run → ${res.task_status ?? "queued"} (task ${res.task_id ?? "?"})`);
+      flash(`Test run -> ${res.task_status ?? "queued"} (task ${res.task_id ?? "?"})`);
     } catch (e) {
       flash(e instanceof Error ? e.message : String(e));
     } finally {
@@ -309,10 +311,11 @@ export function AgentFleetClusterView({ details }: { details: FleetDetail[] }) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap gap-3 text-sm">
+    <div className="space-y-[var(--kane-section-gap)]">
+      <div className="flex flex-wrap gap-x-6 gap-y-3 text-[var(--kane-body-size)] text-[var(--foreground)]">
         <label className="flex items-center gap-2">
           <input
+            className="kane-checkbox h-4 w-4"
             type="checkbox"
             checked={onlyConnected}
             onChange={(e) => setOnlyConnected(e.target.checked)}
@@ -321,6 +324,7 @@ export function AgentFleetClusterView({ details }: { details: FleetDetail[] }) {
         </label>
         <label className="flex items-center gap-2">
           <input
+            className="kane-checkbox h-4 w-4"
             type="checkbox"
             checked={onlyCode}
             onChange={(e) => setOnlyCode(e.target.checked)}
@@ -329,6 +333,7 @@ export function AgentFleetClusterView({ details }: { details: FleetDetail[] }) {
         </label>
         <label className="flex items-center gap-2">
           <input
+            className="kane-checkbox h-4 w-4"
             type="checkbox"
             checked={onlyProblems}
             onChange={(e) => setOnlyProblems(e.target.checked)}
@@ -338,18 +343,18 @@ export function AgentFleetClusterView({ details }: { details: FleetDetail[] }) {
       </div>
 
       {toast && (
-        <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
+        <div className="kane-paper px-3 py-2 text-xs text-[var(--kane-muted)]">
           {toast}
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-[var(--kane-section-gap)] lg:grid-cols-2">
         {rows.map(({ data, bridge_state }) => {
           const connected = data.type === "builtin" ? true : Boolean(bridge_state);
           const mode =
             data.integration_mode ?? (data.type === "builtin" ? "embedded" : "external");
-          const depth = data.control_depth ?? "—";
-          const channels = (data.integration_channels ?? []).join(", ") || "—";
+          const depth = data.control_depth ?? "-";
+          const channels = (data.integration_channels ?? []).join(", ") || "-";
           const code = data.capabilities?.can_code;
           const browse = data.capabilities?.can_browse;
           const general = data.capabilities?.supports_structured_task;
@@ -359,26 +364,28 @@ export function AgentFleetClusterView({ details }: { details: FleetDetail[] }) {
           return (
             <div
               key={data.agent_id}
-              className={`rounded-lg border border-zinc-200 bg-white p-4 space-y-3 ${
-                enabled ? "" : "opacity-70"
-              }`}
+              className={`kane-card space-y-4 p-[var(--kane-card-pad)] ${enabled ? "" : "opacity-70"}`}
             >
-              <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <div className="text-sm font-semibold truncate">{data.display_name}</div>
-                  <div className="mt-1 text-xs text-zinc-500 font-mono truncate">
+                  <div className="truncate text-[1rem] font-semibold leading-tight text-[var(--kane-walnut)]">
+                    {data.display_name}
+                  </div>
+                  <div className="mt-1 truncate font-mono text-[var(--kane-caption-size)] text-[var(--kane-muted)]">
                     {data.agent_id}
                   </div>
                 </div>
                 <div className="flex items-start gap-1">
-                  <div className="flex flex-wrap gap-1">
+                  <div className="flex flex-wrap gap-1.5">
                     {badge(
                       data.status,
                       data.status === "idle"
-                        ? "ok"
+                        ? "neutral"
                         : data.status === "running"
-                          ? "neutral"
-                          : "warn"
+                          ? "ok"
+                          : data.status === "offline"
+                            ? "bad"
+                            : "warn"
                     )}
                     {badge(
                       connected ? t("agents.connected") : t("agents.disconnected"),
@@ -425,39 +432,41 @@ export function AgentFleetClusterView({ details }: { details: FleetDetail[] }) {
                 </div>
               </div>
 
-              <div className="text-xs text-zinc-600 space-y-1">
+              <div className="space-y-2 text-[var(--kane-body-size)] text-[var(--foreground)]">
                 <div>
-                  <span className="text-zinc-500">{t("agents.adapter")}:</span>{" "}
-                  {data.adapter_id ?? "—"}
+                  <span className="text-[var(--kane-muted)]">{t("agents.adapter")}:</span>{" "}
+                  <span className="font-mono text-[var(--kane-caption-size)]">{data.adapter_id ?? "-"}</span>
                 </div>
                 <div>
-                  <span className="text-zinc-500">{t("agents.control_depth")}:</span> {depth}
+                  <span className="text-[var(--kane-muted)]">{t("agents.control_depth")}:</span>{" "}
+                  {depth}
                 </div>
                 <div>
-                  <span className="text-zinc-500">{t("agents.channels")}:</span> {channels}
+                  <span className="text-[var(--kane-muted)]">{t("agents.channels")}:</span>{" "}
+                  {channels}
                 </div>
                 <div>
-                  <span className="text-zinc-500">{t("agents.last_heartbeat")}:</span>{" "}
-                  {data.last_heartbeat_at ?? "—"}
+                  <span className="text-[var(--kane-muted)]">{t("agents.last_heartbeat")}:</span>{" "}
+                  <span className="font-mono text-[var(--kane-caption-size)]">{data.last_heartbeat_at ?? "-"}</span>
                 </div>
                 <div>
-                  <span className="text-zinc-500">{t("agents.fits_for")}:</span>{" "}
+                  <span className="text-[var(--kane-muted)]">{t("agents.fits_for")}:</span>{" "}
                   {[code ? "code" : null, browse ? "browser" : null, general ? "structured" : null]
                     .filter(Boolean)
-                    .join(" · ") || "—"}
+                    .join(" - ") || "-"}
                 </div>
               </div>
 
               <div className="flex flex-wrap gap-2">
                 <Link
                   href={`/agent-fleet/${encodeURIComponent(data.agent_id)}`}
-                  className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs font-medium text-white"
+                  className="kane-button-primary rounded-[var(--kane-radius-control)] px-3.5 py-2 text-[var(--kane-caption-size)] font-medium"
                 >
                   {t("agents.config_testrun")}
                 </Link>
                 <Link
                   href="/cockpit"
-                  className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs text-zinc-800"
+                  className="kane-button-secondary rounded-[var(--kane-radius-control)] px-3.5 py-2 text-[var(--kane-caption-size)]"
                 >
                   {t("agents.send_task")}
                 </Link>

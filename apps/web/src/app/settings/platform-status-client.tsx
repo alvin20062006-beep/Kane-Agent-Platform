@@ -27,6 +27,8 @@ type AdapterBlock = {
   command?: string;
 };
 
+const muted = "text-[var(--kane-muted)]";
+
 export function PlatformStatusClient() {
   const t = useT();
   const [cap, setCap] = useState<Capabilities | null>(null);
@@ -73,55 +75,57 @@ export function PlatformStatusClient() {
   }, []);
 
   const Row = ({ title, block }: { title: string; block: AdapterBlock | null }) => (
-    <div className="rounded-lg border border-zinc-200 bg-white p-3 text-sm space-y-1">
-      <div className="font-medium text-zinc-900">{title}</div>
+    <div className="kane-card kane-grain space-y-2 p-4 text-sm">
+      <div className="font-semibold text-[var(--kane-walnut)]">{title}</div>
       {block ? (
         <>
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-xs">
-            <span className="text-zinc-500">{t("settings.platform.configured")}</span>
-            <span>{String(block.configured ?? "—")}</span>
-            <span className="text-zinc-500">{t("settings.platform.enabled")}</span>
-            <span>{String(block.enabled ?? "—")}</span>
-            <span className="text-zinc-500">{t("settings.platform.health")}</span>
-            <span className="font-mono">{block.health ?? "—"}</span>
+          <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+            <span className={muted}>{t("settings.platform.configured")}</span>
+            <span>{String(block.configured ?? "-")}</span>
+            <span className={muted}>{t("settings.platform.enabled")}</span>
+            <span>{String(block.enabled ?? "-")}</span>
+            <span className={muted}>{t("settings.platform.health")}</span>
+            <span className="font-mono">{block.health ?? "-"}</span>
           </div>
           {block.command ? (
-            <div className="text-xs text-zinc-500">
-              <span className="text-zinc-400">{t("settings.platform.command")}: </span>
-              <code className="rounded bg-zinc-50 px-1">{block.command}</code>
+            <div className="text-xs text-[var(--kane-muted)]">
+              <span>{t("settings.platform.command")}: </span>
+              <code className="rounded bg-white/55 px-1">{block.command}</code>
             </div>
           ) : null}
-          <p className="text-xs text-zinc-600 leading-relaxed">{block.details ?? "—"}</p>
+          <p className="text-xs leading-relaxed text-[var(--kane-muted)]">{block.details ?? "-"}</p>
         </>
       ) : (
-        <p className="text-xs text-zinc-400">{t("settings.platform.loading")}</p>
+        <p className="text-xs text-[var(--kane-muted)]">{t("settings.platform.loading")}</p>
       )}
     </div>
   );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
-        <h2 className="text-base font-semibold">{t("settings.platform.title")}</h2>
-        <p className="mt-1 text-xs text-zinc-500">{t("settings.platform.desc")}</p>
+        <h2 className="text-lg font-semibold text-[var(--kane-walnut)]">{t("settings.platform.title")}</h2>
+        <p className="mt-1 text-sm text-[var(--kane-muted)]">{t("settings.platform.desc")}</p>
       </div>
 
       {error ? (
-        <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-800">{error}</div>
+        <div className="rounded-md border border-red-200 bg-[var(--kane-danger-soft)] p-3 text-xs text-[var(--kane-danger)]">
+          {error}
+        </div>
       ) : null}
 
-      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-3 text-xs space-y-1">
+      <div className="kane-card kane-grain space-y-2 p-5 text-xs">
         <div>
-          <span className="text-zinc-500">{t("settings.platform.permission_profile_label")}: </span>
+          <span className={muted}>{t("settings.platform.permission_profile_label")}: </span>
           <span
             className={
               cap?.kanaloa?.permission_profile === "owner"
-                ? "font-medium text-emerald-800"
+                ? "font-semibold text-[var(--kane-moss)]"
                 : cap?.kanaloa?.permission_profile === "safe"
-                  ? "font-medium text-amber-800"
+                  ? "font-semibold text-[var(--kane-amber-deep)]"
                   : cap?.kanaloa?.permission_profile === "readonly"
-                    ? "font-medium text-zinc-700"
-                    : "font-mono text-zinc-700"
+                    ? "font-semibold text-[var(--kane-muted)]"
+                    : "font-mono text-[var(--kane-muted)]"
             }
           >
             {cap?.kanaloa?.permission_profile === "owner"
@@ -130,52 +134,58 @@ export function PlatformStatusClient() {
                 ? t("settings.platform.profile_safe")
                 : cap?.kanaloa?.permission_profile === "readonly"
                   ? t("settings.platform.profile_readonly")
-                  : "—"}
+                  : "-"}
           </span>
         </div>
         <div>
-          <span className="text-zinc-500">{t("settings.platform.api_version")}: </span>
-          <span className="font-mono">{cap?.platform?.version ?? "—"}</span>
+          <span className={muted}>{t("settings.platform.api_version")}: </span>
+          <span className="font-mono">{cap?.platform?.version ?? "-"}</span>
         </div>
         <div>
-          <span className="text-zinc-500">{t("settings.platform.environment")}: </span>
-          <span className="font-mono">{cap?.platform?.environment ?? "—"}</span>
+          <span className={muted}>{t("settings.platform.environment")}: </span>
+          <span className="font-mono">{cap?.platform?.environment ?? "-"}</span>
         </div>
         <div>
-          <span className="text-zinc-500">{t("settings.platform.llm")}: </span>
+          <span className={muted}>{t("settings.platform.llm")}: </span>
           <span>{cap?.kanaloa?.llm_configured ? t("settings.platform.llm_ok") : t("settings.platform.llm_missing")}</span>
         </div>
         <div>
-          <span className="text-zinc-500">{t("settings.platform.last_probe")}: </span>
-          <span className="font-mono text-[11px]">{cap?.bridge_probe?.probed_at ?? "—"}</span>
+          <span className={muted}>{t("settings.platform.last_probe")}: </span>
+          <span className="font-mono text-[11px]">{cap?.bridge_probe?.probed_at ?? "-"}</span>
         </div>
       </div>
 
       <div>
-        <h3 className="text-sm font-medium text-zinc-800 mb-2">{t("settings.platform.kanaloa_permissions")}</h3>
-        <div className="flex flex-wrap gap-1">
+        <h3 className="mb-2 text-sm font-semibold text-[var(--kane-walnut)]">
+          {t("settings.platform.kanaloa_permissions")}
+        </h3>
+        <div className="flex flex-wrap gap-1.5">
           {(cap?.kanaloa?.permissions ?? []).slice(0, 48).map((p) => (
-            <span key={p} className="rounded-full bg-white border border-zinc-200 px-2 py-0.5 text-[11px] font-mono">
+            <span key={p} className="rounded-full border border-[var(--kane-border)] bg-white/55 px-2 py-0.5 font-mono text-[11px]">
               {p}
             </span>
           ))}
           {!cap?.kanaloa?.permissions?.length ? (
-            <span className="text-xs text-zinc-400">{t("settings.platform.loading")}</span>
+            <span className="text-xs text-[var(--kane-muted)]">{t("settings.platform.loading")}</span>
           ) : null}
         </div>
       </div>
 
       <div>
-        <h3 className="text-sm font-medium text-zinc-800 mb-2">{t("settings.platform.agents_registered")}</h3>
-        <ul className="text-xs space-y-1">
+        <h3 className="mb-2 text-sm font-semibold text-[var(--kane-walnut)]">
+          {t("settings.platform.agents_registered")}
+        </h3>
+        <ul className="space-y-1 text-xs">
           {(cap?.agents ?? []).map((a) => (
             <li key={a.id} className="flex gap-2">
               <code className="font-mono">{a.id}</code>
               <span>{a.name}</span>
-              <span className="text-zinc-400">{a.enabled ? "on" : "off"}</span>
+              <span className={a.enabled ? "text-[var(--kane-moss)]" : "text-[var(--kane-muted)]"}>
+                {a.enabled ? "on" : "off"}
+              </span>
             </li>
           ))}
-          {!cap?.agents?.length ? <li className="text-zinc-400">{t("settings.platform.none")}</li> : null}
+          {!cap?.agents?.length ? <li className="text-[var(--kane-muted)]">{t("settings.platform.none")}</li> : null}
         </ul>
       </div>
 
@@ -186,13 +196,15 @@ export function PlatformStatusClient() {
         <Row title={t("settings.platform.cursor_title")} block={cursor} />
       </div>
 
-      <div className="rounded-lg border border-zinc-200 bg-white p-3 space-y-2">
-        <div className="text-sm font-medium text-zinc-900">{t("settings.platform.actions_title")}</div>
+      <div className="kane-card kane-grain space-y-3 p-5">
+        <div className="text-sm font-semibold text-[var(--kane-walnut)]">
+          {t("settings.platform.actions_title")}
+        </div>
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
             disabled={busy}
-            className="rounded-md bg-zinc-900 px-3 py-1.5 text-xs text-white disabled:opacity-50"
+            className="rounded-md bg-[linear-gradient(180deg,var(--kane-walnut),var(--kane-walnut-deep))] px-3.5 py-2 text-xs text-white shadow-[0_8px_18px_rgba(81,39,7,0.18)] disabled:opacity-50"
             onClick={async () => {
               setBusy(true);
               setActionNote(null);
@@ -225,7 +237,7 @@ export function PlatformStatusClient() {
           <button
             type="button"
             disabled={busy}
-            className="rounded-md border border-zinc-300 px-3 py-1.5 text-xs disabled:opacity-50"
+            className="rounded-md border border-[var(--kane-border)] bg-white/55 px-3.5 py-2 text-xs shadow-[0_1px_0_rgba(255,255,255,0.6)_inset] disabled:opacity-50"
             onClick={async () => {
               setBusy(true);
               setActionNote(null);
@@ -249,23 +261,27 @@ export function PlatformStatusClient() {
           </button>
         </div>
         {actionNote ? (
-          <pre className="mt-2 max-h-40 overflow-auto rounded bg-zinc-50 p-2 text-[11px] leading-snug">{actionNote}</pre>
+          <pre className="mt-2 max-h-40 overflow-auto rounded-md border border-[var(--kane-border)] bg-white/55 p-3 text-[11px] leading-snug">
+            {actionNote}
+          </pre>
         ) : null}
       </div>
 
       <div>
-        <h3 className="text-sm font-medium text-zinc-800 mb-2">{t("settings.platform.recent_tasks")}</h3>
-        <ul className="text-xs space-y-1 font-mono">
+        <h3 className="mb-2 text-sm font-semibold text-[var(--kane-walnut)]">
+          {t("settings.platform.recent_tasks")}
+        </h3>
+        <ul className="space-y-1 font-mono text-xs">
           {tasks.map((tk) => (
             <li key={tk.task_id}>
-              {tk.task_id?.slice(0, 12)}… {String(tk.status ?? "")} — {tk.title}
+              {tk.task_id?.slice(0, 12)} - {String(tk.status ?? "")} - {tk.title}
             </li>
           ))}
-          {!tasks.length ? <li className="text-zinc-400">{t("settings.platform.none")}</li> : null}
+          {!tasks.length ? <li className="text-[var(--kane-muted)]">{t("settings.platform.none")}</li> : null}
         </ul>
       </div>
 
-      <p className="text-[11px] text-zinc-400">{t("settings.platform.footer_note")}</p>
+      <p className="text-[11px] text-[var(--kane-muted)]">{t("settings.platform.footer_note")}</p>
     </div>
   );
 }
