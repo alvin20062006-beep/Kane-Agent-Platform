@@ -2,9 +2,57 @@
 
 Kane Agent Platform is a local-first Agent Operating System for agent execution. It combines a Next.js Web UI, FastAPI control plane, Local Bridge, agent adapters, task execution loop, memory audit, retrieval, verifier records, repair records, and background memory compilation into one local control surface.
 
+
+![Agent Fleet](docs/images/agent-fleet-en.png)
+
+
 Kane is not a Memory Framework, a RAG Framework, or a Workflow Engine. Memory, retrieval, MoA-style reference review, verification, repair, and UI audit surfaces exist to support agent execution.
 
-## What Is Kane
+## ⭐ Why Kane?
+
+Modern agent systems are becoming powerful, but many of them still hide the most important part of the system: execution.
+
+Planning, retrieval, verification, repair, memory updates, tool calls, and agent decisions are often buried inside opaque loops. When something fails, it is hard to answer the basic engineering questions:
+
+- What happened?
+- Why did the agent choose this path?
+- What evidence did it use?
+- What was verified?
+- What failed?
+- What changed after the failure?
+
+Kane was designed from a different starting point.
+
+Instead of treating agent execution as a black box, Kane turns execution into a first-class platform model.
+
+A task is not just "sent to an agent."
+
+It becomes:
+
+- a Task,
+- a Run,
+- a RunStep timeline,
+- linked evidence,
+- verifier records,
+- repair attempts,
+- memory events,
+- and final status reconciliation.
+
+This gives Kane a different shape from prompt-first agent systems.
+
+The important parts of execution are not hidden in prompts, temporary logs, or agent-specific runtime state. They become platform records that can be inspected, queried, verified, repaired, and improved over time.
+
+Kane is not built around one model, one prompt, or one orchestration style.
+
+It is built around a durable execution foundation that can support built-in agents, local adapters, handoff workflows, MoA-style reference review, memory compilation, verifier records, and repair loops without collapsing everything into one opaque agent loop.
+
+The goal is simple:
+
+**Make agent execution understandable, inspectable, and improvable.**
+
+Not just executable.
+
+## ⭐ What Is Kane
 
 Kane is the platform. It owns the control plane, Task -> Run -> RunStep execution model, worker queue, memory ledger, retrieval services, verifier and repair records, background compiler, Local Bridge integration, and Web UI.
 
@@ -40,10 +88,6 @@ Bridge: 8010
 ```
 
 Port `8011` is not started by the default stack. It is reserved for optional secondary or acceptance-test bridge processes. The stop and verification scripts check it alongside `3000`, `8000`, and `8010` so a secondary local bridge cannot remain running silently.
-
-## Screenshots
-
-![Agent Fleet](docs/images/agent-fleet-en.png)
 
 ## Quick Start
 
@@ -123,28 +167,31 @@ The current v2.0.0 built-in path is Kanaloa. The current code does not provide a
 
 Task, Run, and RunStep terminal states should not contradict each other. Failure paths must remain honest: permission errors, missing tools, and handoff states are recorded instead of being reported as fake success.
 
-## Loop
+## Reliable Agent Execution
 
-Loop in v2.0.0 is a platform execution loop, not a Kanaloa-private loop and not just the worker queue. The loop includes:
+Most AI agent frameworks only expose the final outcome.
 
-- Task creation and assignment.
-- Run creation for an execution attempt.
-- RunStep timeline creation and finalization.
-- Worker execution.
-- Builtin executor or Local Bridge dispatch.
-- Bridge callback/result handling.
-- Verifier and repair references when present.
-- Task status reconciliation from explicit worker, Run, Bridge, handoff, or failure outcomes.
+Kane records the complete execution process, allowing every task to be inspected, verified, repaired, and reproduced.
 
-## MoA
+For every execution, Kane can preserve:
 
-MoA-style review is represented as Kane platform records:
+- Execution Timeline
+- Evidence References
+- Verification Results
+- Repair History
+- Execution State Reconciliation
 
-- Reference Candidate records.
-- Aggregator Decision records.
-- RunStep reference IDs linking decisions and evidence.
+Instead of treating execution as a black box, Kane makes agent behavior transparent, traceable, and repeatable.
 
-This layer is optional and platform-owned. It is not Kanaloa-private. Future agents can call or contribute to the same platform reference and aggregation layer, but v2.0.0 does not claim automatic multi-model orchestration.
+## Platform-Owned MoA Layer
+
+Kane provides infrastructure for multi-perspective decision making:
+
+- Reference Candidate records: Multiple viewpoints (architect_reviewer, implementation_reviewer, security_reviewer, test_reviewer, docs_reviewer) on a RunStep.
+- Aggregator Decision records: Synthesis of candidates with confidence, known gaps, and verifier requirements.
+- RunStep reference linking: Decision records attached to execution steps via reference IDs.
+
+This layer is optional and platform-owned, not Kanaloa-private. It is not automatic MoA orchestration (v2.0.0 does not claim that). Future agents can leverage these records for actual MoA strategies. The infrastructure is there; the automation is not (yet).
 
 ## Memory
 

@@ -918,11 +918,10 @@ export function ConversationsClient({ initialConversations, agents }: Props) {
                   {/* remember toggle replaces old checkbox; keep the same test-id for E2E */}
                   <label
                     className={cx(
-                      "inline-flex cursor-pointer select-none items-center gap-1.5 rounded-md border px-2 py-1 text-[11px] transition-colors",
-                      remember
-                        ? "border-amber-300 bg-amber-50 text-amber-800"
-                        : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400"
+                      "kane-composer-control cursor-pointer select-none",
+                      remember && "border-amber-300 bg-amber-50 text-amber-800"
                     )}
+                    data-state={remember ? "on" : "off"}
                     title={t("conv.remember.title")}
                   >
                     <input
@@ -932,9 +931,9 @@ export function ConversationsClient({ initialConversations, agents }: Props) {
                       checked={remember}
                       onChange={(e) => setRemember(e.target.checked)}
                     />
-                    <span aria-hidden>📌</span>
-                    <span>{t("conv.remember.label")}</span>
-                    <span className={cx("text-[10px]", remember ? "text-amber-600" : "text-zinc-400")}>
+                    <span className="kane-composer-control__icon" aria-hidden>📌</span>
+                    <span className="kane-composer-control__label">{t("conv.remember.label")}</span>
+                    <span className="kane-composer-control__suffix">
                       {remember ? t("conv.remember.on") : t("conv.remember.off")}
                     </span>
                   </label>
@@ -1069,15 +1068,13 @@ function Dropdown({
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
         className={cx(
-          "inline-flex items-center gap-1 rounded-md border border-zinc-200 bg-white px-2 py-1 text-[11px] transition-colors",
-          disabled
-            ? "cursor-not-allowed text-zinc-300"
-            : "text-zinc-700 hover:border-zinc-400"
+          "kane-composer-control",
+          disabled && "cursor-not-allowed opacity-55"
         )}
       >
-        <span aria-hidden>{icon}</span>
-        <span>{label}</span>
-        <span className="text-[10px] opacity-60">▾</span>
+        <span className="kane-composer-control__icon" aria-hidden>{icon}</span>
+        <span className="kane-composer-control__label">{label}</span>
+        <span className="kane-composer-control__suffix" aria-hidden>▾</span>
       </button>
       {open && (
         <div

@@ -19,6 +19,15 @@ type OctopusBindingStatus = {
   profile: ApiProfile | null;
 };
 
+const inputClass =
+  "w-full rounded-md border border-[var(--kane-border)] bg-white/55 px-3 py-2.5 text-sm text-[var(--foreground)] shadow-[0_1px_0_rgba(255,255,255,0.6)_inset]";
+
+const secondaryButton =
+  "rounded-md border border-[var(--kane-border)] bg-white/55 px-3.5 py-2 text-sm text-[var(--kane-walnut)] shadow-[0_1px_0_rgba(255,255,255,0.6)_inset] transition hover:border-[var(--kane-amber)] hover:bg-white/75 disabled:opacity-50";
+
+const primaryButton =
+  "rounded-md bg-[linear-gradient(180deg,var(--kane-walnut),var(--kane-walnut-deep))] px-4 py-2 text-sm text-white shadow-[0_8px_18px_rgba(81,39,7,0.18)] transition hover:bg-[var(--kane-walnut-deep)] disabled:opacity-50";
+
 export function ApiProfilesClient() {
   const t = useT();
   const [profiles, setProfiles] = useState<ApiProfile[]>([]);
@@ -47,7 +56,6 @@ export function ApiProfilesClient() {
     setProfiles(p.items);
     setAgents(a.items);
     if (a.items.length && !selectedAgentId) setSelectedAgentId(a.items[0].agent_id);
-    // Load current octopus_builtin binding
     try {
       const detail = await apiGet<{ api_profile: OctopusBindingStatus }>("/agents/octopus_builtin");
       setOctopusBinding(detail.api_profile ?? null);
@@ -55,7 +63,7 @@ export function ApiProfilesClient() {
         setActivateProfileId(detail.api_profile.binding.profile_id);
       }
     } catch {
-      // octopus_builtin may not exist yet
+      // The built-in agent may not exist in older local data.
     }
   };
 
@@ -184,36 +192,38 @@ export function ApiProfilesClient() {
   };
 
   return (
-    <section className="rounded-lg border border-zinc-200 bg-white p-4 space-y-4">
-      <div className="rounded-lg border-2 border-zinc-900 bg-zinc-50 p-4 space-y-3">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold">{t("profiles.section.activation")}</span>
+    <section className="space-y-5">
+      <div className="kane-card kane-grain space-y-3 border-2 border-[var(--kane-walnut)] p-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-sm font-bold text-[var(--kane-walnut)]">
+            {t("profiles.section.activation")}
+          </span>
           {octopusBinding?.profile ? (
-            <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs text-green-700 font-medium">
+            <span className="rounded-full border border-emerald-200 bg-[var(--kane-moss-soft)] px-2 py-0.5 text-xs font-medium text-[var(--kane-moss)]">
               {t("profiles.activation.active")
                 .replace("{name}", octopusBinding.profile.name)
                 .replace("{model}", octopusBinding.profile.model)}
             </span>
           ) : (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 font-medium">
+            <span className="rounded-full border border-amber-200 bg-[var(--kane-amber-soft)] px-2 py-0.5 text-xs font-medium text-[var(--kane-amber-deep)]">
               {t("profiles.activation.inactive")}
             </span>
           )}
         </div>
-        <p className="text-xs text-zinc-500">{t("profiles.activation.hint")}</p>
+        <p className="text-xs text-[var(--kane-muted)]">{t("profiles.activation.hint")}</p>
         {profiles.length === 0 ? (
-          <p className="text-xs text-zinc-400">{t("profiles.activation.empty")}</p>
+          <p className="text-xs text-[var(--kane-muted)]">{t("profiles.activation.empty")}</p>
         ) : (
-          <div className="flex gap-2 flex-wrap">
+          <div className="flex flex-wrap gap-2">
             <select
-              className="rounded-md border border-zinc-300 px-3 py-1.5 text-sm"
+              className={inputClass}
               value={activateProfileId}
               onChange={(e) => setActivateProfileId(e.target.value)}
             >
               <option value="">{t("profiles.activation.select_placeholder")}</option>
               {profiles.map((p) => (
                 <option key={p.profile_id} value={p.profile_id}>
-                  {p.name} — {p.provider} — {p.model}
+                  {p.name} - {p.provider} - {p.model}
                 </option>
               ))}
             </select>
@@ -221,7 +231,7 @@ export function ApiProfilesClient() {
               type="button"
               disabled={busy || !activateProfileId}
               onClick={onActivateOctopus}
-              className="rounded-md bg-zinc-900 px-4 py-1.5 text-sm text-white disabled:opacity-50"
+              className={primaryButton}
             >
               {t("profiles.activation.activate")}
             </button>
@@ -229,43 +239,46 @@ export function ApiProfilesClient() {
         )}
       </div>
 
-      <div className="text-sm font-semibold">{t("profiles.section.main")}</div>
-      <div className="text-xs text-zinc-500">{t("profiles.intro")}</div>
+      <div>
+        <div className="text-sm font-semibold text-[var(--kane-walnut)]">{t("profiles.section.main")}</div>
+        <div className="mt-1 text-xs text-[var(--kane-muted)]">{t("profiles.intro")}</div>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <div className="rounded-md border border-zinc-200 p-3 space-y-2">
-          <div className="text-sm font-medium">{t("profiles.section.new")}</div>
+        <div className="kane-card kane-grain space-y-3 p-5">
+          <div className="text-sm font-semibold text-[var(--kane-walnut)]">{t("profiles.section.new")}</div>
           {editingProfileId ? (
-            <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-              {t("profiles.form.editing") || "正在编辑"}{" "}
+            <div className="rounded-md border border-amber-200 bg-[var(--kane-amber-soft)] px-3 py-2 text-xs text-[var(--kane-amber-deep)]">
+              {t("profiles.form.editing") || "Editing"}{" "}
               <span className="font-mono">{editingProfileId}</span>
               <button
                 type="button"
                 disabled={busy}
                 onClick={clearEdit}
-                className="ml-2 rounded-md border border-amber-200 bg-white px-2 py-1 text-xs disabled:opacity-50"
+                className="ml-2 rounded-md border border-amber-200 bg-white/60 px-2 py-1 text-xs disabled:opacity-50"
               >
-                {t("profiles.form.cancel") || "取消"}
+                {t("profiles.form.cancel") || "Cancel"}
               </button>
             </div>
           ) : null}
           <input
-            className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
+            className={inputClass}
             placeholder={t("profiles.form.name_ph")}
             value={form.name}
             onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
           />
           <div className="grid gap-2 md:grid-cols-2">
             <select
-              className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
+              className={inputClass}
               value={form.provider}
               onChange={(e) => setForm((f) => ({ ...f, provider: e.target.value as ApiProfile["provider"] }))}
             >
               <option value="openai_compatible">openai_compatible</option>
               <option value="anthropic_compatible">anthropic_compatible</option>
             </select>
-            <label className="flex items-center gap-2 text-sm text-zinc-700">
+            <label className="flex items-center gap-2 text-sm text-[var(--kane-muted)]">
               <input
+                className="kane-checkbox h-4 w-4"
                 type="checkbox"
                 checked={form.is_default}
                 onChange={(e) => setForm((f) => ({ ...f, is_default: e.target.checked }))}
@@ -274,20 +287,20 @@ export function ApiProfilesClient() {
             </label>
           </div>
           <input
-            className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm font-mono"
+            className={`${inputClass} font-mono`}
             placeholder={t("profiles.form.base_ph")}
             value={form.base_url}
             onChange={(e) => setForm((f) => ({ ...f, base_url: e.target.value }))}
           />
           <input
-            className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm font-mono"
+            className={`${inputClass} font-mono`}
             placeholder={t("profiles.form.model_ph")}
             value={form.model}
             onChange={(e) => setForm((f) => ({ ...f, model: e.target.value }))}
           />
           <input
             type="password"
-            className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm font-mono"
+            className={`${inputClass} font-mono`}
             placeholder={t("profiles.form.key_ph")}
             value={form.api_key}
             onChange={(e) => setForm((f) => ({ ...f, api_key: e.target.value }))}
@@ -296,16 +309,16 @@ export function ApiProfilesClient() {
             type="button"
             disabled={busy || !form.name.trim()}
             onClick={onCreate}
-            className="rounded-md bg-zinc-900 px-4 py-2 text-sm text-white disabled:opacity-50"
+            className={primaryButton}
           >
-            {editingProfileId ? (t("profiles.form.update") || "更新 Profile") : t("profiles.form.save")}
+            {editingProfileId ? (t("profiles.form.update") || "Update Profile") : t("profiles.form.save")}
           </button>
         </div>
 
-        <div className="rounded-md border border-zinc-200 p-3 space-y-2">
-          <div className="text-sm font-medium">{t("profiles.section.bind")}</div>
+        <div className="kane-card kane-grain space-y-3 p-5">
+          <div className="text-sm font-semibold text-[var(--kane-walnut)]">{t("profiles.section.bind")}</div>
           <select
-            className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
+            className={inputClass}
             value={selectedAgentId}
             onChange={(e) => setSelectedAgentId(e.target.value)}
           >
@@ -316,26 +329,26 @@ export function ApiProfilesClient() {
             ))}
           </select>
           <select
-            className="w-full rounded-md border border-zinc-200 px-3 py-2 text-sm"
+            className={inputClass}
             value={selectedProfileId}
             onChange={(e) => setSelectedProfileId(e.target.value)}
           >
             <option value="">{t("profiles.bind.select_placeholder")}</option>
             {profiles.map((p) => (
               <option key={p.profile_id} value={p.profile_id}>
-                {p.name} {p.is_default ? `[${t("profiles.form.default_label")}]` : ""} — {p.provider} — {p.model}
+                {p.name} {p.is_default ? `[${t("profiles.form.default_label")}]` : ""} - {p.provider} - {p.model}
               </option>
             ))}
           </select>
-          <div className="text-xs text-zinc-500">
-            {t("profiles.bind.selected")} {agentBindingLabel || "—"}
+          <div className="text-xs text-[var(--kane-muted)]">
+            {t("profiles.bind.selected")} {agentBindingLabel || "-"}
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="button"
               disabled={busy || !selectedProfileId}
               onClick={onBind}
-              className="rounded-md border border-zinc-200 px-3 py-2 text-sm disabled:opacity-50"
+              className={secondaryButton}
             >
               {t("profiles.bind.bind_btn")}
             </button>
@@ -343,7 +356,7 @@ export function ApiProfilesClient() {
               type="button"
               disabled={busy}
               onClick={onInspectAgent}
-              className="rounded-md border border-zinc-200 px-3 py-2 text-sm disabled:opacity-50"
+              className={secondaryButton}
             >
               {t("profiles.bind.inspect_btn")}
             </button>
@@ -351,26 +364,25 @@ export function ApiProfilesClient() {
         </div>
       </div>
 
-      <div className="rounded-md border border-zinc-200 p-3">
-        <div className="text-sm font-medium">{t("profiles.section.list")}</div>
-        <div className="mt-2 space-y-2">
+      <div className="kane-card kane-grain p-5">
+        <div className="text-sm font-semibold text-[var(--kane-walnut)]">{t("profiles.section.list")}</div>
+        <div className="mt-3 space-y-2">
           {profiles.length ? (
             profiles.map((p) => (
-              <div key={p.profile_id} className="rounded-md border border-zinc-200 p-3 text-sm">
-                <div className="font-medium">
-                  {p.name}{" "}
-                  {p.is_default ? `(${t("profiles.form.default_label")})` : ""}
+              <div key={p.profile_id} className="rounded-md border border-[var(--kane-border)] bg-white/45 p-3 text-sm">
+                <div className="font-semibold text-[var(--kane-walnut)]">
+                  {p.name} {p.is_default ? `(${t("profiles.form.default_label")})` : ""}
                 </div>
-                <div className="mt-1 text-xs text-zinc-500 font-mono">
-                  {p.profile_id} • {p.provider} • {p.base_url} • {p.model} • api_key={p.api_key ?? "null"}
+                <div className="mt-1 font-mono text-xs text-[var(--kane-muted)]">
+                  {p.profile_id} - {p.provider} - {p.base_url} - {p.model} - api key hidden
                 </div>
-                <div className="mt-2 flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     type="button"
                     disabled={busy}
                     data-testid={`api-profile-test-${p.profile_id}`}
                     onClick={() => void onTestProfile(p.profile_id)}
-                    className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-900 disabled:opacity-50"
+                    className="rounded-md border border-emerald-200 bg-[var(--kane-moss-soft)] px-3 py-1.5 text-xs text-[var(--kane-moss)] disabled:opacity-50"
                   >
                     {t("profiles.list.test_connectivity")}
                   </button>
@@ -378,37 +390,36 @@ export function ApiProfilesClient() {
                     type="button"
                     disabled={busy}
                     onClick={() => startEdit(p)}
-                    className="rounded-md border border-zinc-200 px-3 py-1.5 text-xs disabled:opacity-50"
+                    className="rounded-md border border-[var(--kane-border)] bg-white/55 px-3 py-1.5 text-xs text-[var(--kane-walnut)] disabled:opacity-50"
                   >
-                    {t("profiles.list.edit") || "编辑"}
+                    {t("profiles.list.edit") || "Edit"}
                   </button>
                   <button
                     type="button"
                     disabled={busy}
                     onClick={() => {
-                      if (window.confirm(`${t("profiles.list.delete_confirm") || "确认删除该 Profile？"}\n\n${p.name}\n${p.profile_id}`)) {
+                      if (window.confirm(`${t("profiles.list.delete_confirm") || "Delete this profile?"}\n\n${p.name}\n${p.profile_id}`)) {
                         onDelete(p.profile_id).catch(() => undefined);
                       }
                     }}
                     className="rounded-md border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs text-rose-700 disabled:opacity-50"
                   >
-                    {t("profiles.list.delete") || "删除"}
+                    {t("profiles.list.delete") || "Delete"}
                   </button>
                 </div>
               </div>
             ))
           ) : (
-            <div className="text-sm text-zinc-500">{t("profiles.list.empty")}</div>
+            <div className="text-sm text-[var(--kane-muted)]">{t("profiles.list.empty")}</div>
           )}
         </div>
       </div>
 
       {log ? (
-        <pre className="max-h-[260px] overflow-auto whitespace-pre-wrap rounded-md bg-zinc-950 p-3 text-xs text-zinc-100">
+        <pre className="max-h-[260px] overflow-auto whitespace-pre-wrap rounded-md bg-[var(--kane-walnut)] p-3 text-xs text-[var(--kane-topbar-text)]">
           {log}
         </pre>
       ) : null}
     </section>
   );
 }
-
