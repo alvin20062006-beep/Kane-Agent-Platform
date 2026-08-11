@@ -1,4 +1,4 @@
-﻿# Kane Agent Platform v2.0.0
+# Kane Agent Platform v2.0.0
 
 [Website](https://alvin20062006-beep.github.io/Kane-Agent-Platform/) |
 [Download ZIP](https://github.com/alvin20062006-beep/Kane-Agent-Platform/archive/refs/heads/main.zip) |
