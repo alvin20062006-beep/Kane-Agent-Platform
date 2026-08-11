@@ -1,0 +1,253 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kane Agent Platform v2.0.0</title>
+    <meta
+      name="description"
+      content="Kane Agent Platform is a local-first Agent Operating System for inspectable agent execution."
+    />
+    <style>
+      :root {
+        --ink: #26160d;
+        --muted: #7a5b45;
+        --paper: #fff5e6;
+        --line: #dfc09a;
+        --coffee: #512304;
+        --orange: #d95c00;
+        --orange-2: #ff8a1f;
+        --shadow: 0 30px 90px rgba(69, 31, 5, 0.24);
+        --soft-shadow: 0 18px 50px rgba(99, 49, 11, 0.14);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      }
+
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      body {
+        margin: 0;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at 12% 8%, rgba(255, 161, 71, 0.24), transparent 32rem),
+          radial-gradient(circle at 92% 18%, rgba(69, 31, 5, 0.28), transparent 36rem),
+          linear-gradient(135deg, #fff7eb 0%, #f3ddbd 48%, #fff3df 100%);
+      }
+      a { color: inherit; text-decoration: none; }
+      img { display: block; max-width: 100%; }
+
+      .page { min-height: 100vh; padding: 18px; }
+      .shell {
+        overflow: hidden;
+        max-width: 1440px;
+        margin: 0 auto;
+        border: 1px solid rgba(84, 38, 7, 0.45);
+        border-radius: 30px;
+        background: rgba(255, 246, 231, 0.92);
+        box-shadow: var(--shadow);
+      }
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        min-height: 88px;
+        padding: 0 34px;
+        color: #fff9ef;
+        background:
+          radial-gradient(circle at 24% 30%, rgba(255, 205, 140, 0.18), transparent 24rem),
+          linear-gradient(108deg, #6b3309 0%, #4a1f03 70%, #2f1200 100%);
+      }
+      .brand { display: flex; align-items: center; gap: 13px; font-weight: 800; }
+      .mark {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #fff0d7, #ffb96d);
+        font-size: 22px;
+      }
+      .brand small { display: block; margin-top: 2px; color: rgba(255, 246, 231, 0.76); font-size: 12px; }
+      nav { display: flex; align-items: center; gap: 18px; color: rgba(255, 249, 239, 0.82); font-size: 14px; font-weight: 650; }
+      nav a:hover { color: #fff; }
+
+      .hero {
+        display: grid;
+        grid-template-columns: minmax(0, 0.82fr) minmax(420px, 1.18fr);
+        gap: 34px;
+        padding: 56px 46px 42px;
+        background:
+          linear-gradient(90deg, rgba(255, 250, 241, 0.92), rgba(255, 244, 226, 0.72)),
+          radial-gradient(circle at 80% 70%, rgba(219, 92, 0, 0.14), transparent 30rem);
+      }
+      .hero h1 { margin: 0; max-width: 760px; font-size: clamp(46px, 7vw, 96px); line-height: 0.94; letter-spacing: -0.04em; }
+      .hero p { max-width: 620px; margin: 24px 0 0; color: var(--muted); font-size: 18px; line-height: 1.7; }
+      .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 20px;
+        border: 1px solid rgba(102, 48, 9, 0.22);
+        border-radius: 14px;
+        background: #fff8ed;
+        color: var(--coffee);
+        box-shadow: 0 12px 28px rgba(82, 35, 4, 0.1);
+        font-size: 14px;
+        font-weight: 750;
+      }
+      .button.primary { border-color: transparent; background: linear-gradient(135deg, var(--orange), var(--orange-2)); color: #fff; }
+      .terminal { margin-top: 28px; overflow: hidden; border: 1px solid rgba(98, 45, 6, 0.18); border-radius: 18px; background: #321400; box-shadow: var(--soft-shadow); }
+      .terminal .dots { display: flex; gap: 7px; padding: 13px 16px; background: rgba(255, 255, 255, 0.08); }
+      .terminal span { width: 9px; height: 9px; border-radius: 50%; background: #ffbc72; }
+      pre { margin: 0; padding: 4px 18px 20px; color: #ffe6c4; font-size: 14px; line-height: 1.75; white-space: pre-wrap; }
+      .hero-shot { align-self: center; overflow: hidden; border: 1px solid rgba(91, 41, 7, 0.24); border-radius: 24px; background: #fff1dd; box-shadow: var(--soft-shadow); }
+      .hero-shot img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: left top; }
+
+      section { padding: 54px 46px; }
+      .section-head { display: flex; align-items: end; justify-content: space-between; gap: 22px; margin-bottom: 24px; }
+      h2 { margin: 0; font-size: clamp(30px, 4vw, 48px); line-height: 1.02; letter-spacing: -0.025em; }
+      .section-head p { max-width: 540px; margin: 0; color: var(--muted); line-height: 1.65; }
+      .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+      .card { min-height: 190px; padding: 24px; border: 1px solid rgba(102, 48, 9, 0.16); border-radius: 20px; background: rgba(255, 250, 243, 0.78); box-shadow: 0 14px 38px rgba(94, 43, 6, 0.08); }
+      .card strong { display: block; margin-bottom: 10px; font-size: 18px; }
+      .card p { margin: 0; color: var(--muted); line-height: 1.65; }
+      .icon { display: grid; width: 38px; height: 38px; margin-bottom: 18px; place-items: center; border-radius: 13px; background: #fff0d7; color: var(--orange); font-weight: 900; }
+      .dark { color: #fff7e9; background: radial-gradient(circle at 20% 30%, rgba(255, 151, 51, 0.22), transparent 28rem), linear-gradient(135deg, #5c2705, #2d1000); }
+      .dark .section-head p, .dark .card p { color: rgba(255, 244, 226, 0.74); }
+      .dark .card { border-color: rgba(255, 225, 184, 0.16); background: rgba(255, 255, 255, 0.06); box-shadow: none; }
+      .image-grid { display: grid; grid-template-columns: 1.2fr 0.8fr; gap: 18px; }
+      .image-panel { overflow: hidden; border: 1px solid rgba(102, 48, 9, 0.16); border-radius: 22px; background: #fff8ef; box-shadow: var(--soft-shadow); }
+      .image-panel img { width: 100%; height: 100%; min-height: 320px; object-fit: cover; }
+      .image-panel.arch img { object-fit: contain; padding: 24px; background: #fff8ef; }
+      .steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+      .step { min-height: 132px; padding: 18px; border: 1px solid rgba(102, 48, 9, 0.16); border-radius: 18px; background: rgba(255, 250, 243, 0.82); }
+      .step span { color: var(--orange); font-size: 13px; font-weight: 850; }
+      .step strong { display: block; margin-top: 14px; font-size: 18px; }
+      .download { display: grid; grid-template-columns: minmax(0, 1fr) minmax(320px, 0.72fr); gap: 24px; align-items: center; padding-bottom: 62px; }
+      .download-box { padding: 26px; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 22px; background: rgba(255, 255, 255, 0.08); }
+      footer { display: flex; justify-content: space-between; gap: 18px; padding: 22px 46px 30px; color: rgba(255, 247, 233, 0.75); background: #2e1200; font-size: 13px; }
+
+      @media (max-width: 980px) {
+        .topbar, nav, .section-head, footer { align-items: flex-start; flex-direction: column; }
+        .hero, .download, .image-grid { grid-template-columns: 1fr; }
+        .grid, .steps { grid-template-columns: 1fr 1fr; }
+      }
+      @media (max-width: 640px) {
+        .page { padding: 8px; }
+        .shell { border-radius: 22px; }
+        .topbar, .hero, section, footer { padding-left: 22px; padding-right: 22px; }
+        .grid, .steps { grid-template-columns: 1fr; }
+        nav { gap: 10px; }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="page">
+      <div class="shell">
+        <header class="topbar">
+          <a class="brand" href="#">
+            <span class="mark" aria-hidden="true">🐙</span>
+            <span>Kane <small>AI Agent Platform</small></span>
+          </a>
+          <nav aria-label="Primary">
+            <a href="#features">Features</a>
+            <a href="#architecture">Architecture</a>
+            <a href="#download">Download</a>
+            <a href="https://github.com/alvin20062006-beep/Kane-Agent-Platform">GitHub</a>
+          </nav>
+        </header>
+
+        <section class="hero">
+          <div>
+            <h1>Local-first Agent OS for inspectable execution.</h1>
+            <p>Kane turns agent work into durable platform records: tasks, runs, timelines, evidence, verifier results, repair attempts, memory events, and status reconciliation that can be inspected instead of guessed.</p>
+            <div class="hero-actions">
+              <a class="button primary" href="https://github.com/alvin20062006-beep/Kane-Agent-Platform/archive/refs/heads/main.zip">Download ZIP</a>
+              <a class="button" href="https://github.com/alvin20062006-beep/Kane-Agent-Platform">View on GitHub</a>
+              <a class="button" href="https://github.com/alvin20062006-beep/Kane-Agent-Platform/releases/tag/v2.0.0">v2.0.0 Release</a>
+            </div>
+            <div class="terminal" aria-label="Quick start">
+              <div class="dots"><span></span><span></span><span></span></div>
+              <pre>git clone https://github.com/alvin20062006-beep/Kane-Agent-Platform
+cd Kane-Agent-Platform
+npm install
+npm run setup
+npm run dev:stack</pre>
+            </div>
+          </div>
+          <figure class="hero-shot">
+            <img src="images/agent-fleet-en.png" alt="Kane Agent Fleet screen" />
+          </figure>
+        </section>
+
+        <section id="features">
+          <div class="section-head">
+            <h2>Built for execution truth.</h2>
+            <p>Kane is not a memory framework, RAG framework, or workflow engine. Its shared services exist to make agent execution understandable, auditable, and repeatable.</p>
+          </div>
+          <div class="grid">
+            <article class="card"><span class="icon">01</span><strong>Task -> Run -> RunStep</strong><p>Every execution attempt gets a timeline, linked references, and status reconciliation.</p></article>
+            <article class="card"><span class="icon">02</span><strong>Memory audit</strong><p>Append-only AI memory events, active snapshots, index projection, and compiler candidates.</p></article>
+            <article class="card"><span class="icon">03</span><strong>External agents</strong><p>Local Bridge paths for Codex CLI, Cursor handoff, callbacks, status, and honest failures.</p></article>
+            <article class="card"><span class="icon">04</span><strong>Verifier records</strong><p>Verification status, findings, summaries, and evidence references without arbitrary shell execution.</p></article>
+            <article class="card"><span class="icon">05</span><strong>Repair attempts</strong><p>Retry, repair, and rollback intent are recorded without pretending high-risk actions are automatic.</p></article>
+            <article class="card"><span class="icon">06</span><strong>MoA records</strong><p>Reference candidates and aggregator decisions are platform-owned optional records.</p></article>
+          </div>
+        </section>
+
+        <section id="architecture" class="dark">
+          <div class="section-head">
+            <h2>Platform-owned architecture.</h2>
+            <p>Kane owns the control plane and shared services. Kanaloa is the current built-in agent path, while external adapters connect through the Local Bridge.</p>
+          </div>
+          <div class="image-grid">
+            <figure class="image-panel arch"><img src="images/kane-v2-architecture.svg" alt="Kane v2.0.0 architecture diagram" /></figure>
+            <div class="grid" style="grid-template-columns: 1fr;">
+              <article class="card"><strong>Kanaloa</strong><p>Current built-in AI agent path. It is not the platform and not the memory subsystem.</p></article>
+              <article class="card"><strong>Local Bridge</strong><p>Connects local CLI and handoff adapters. Missing tools and permission errors stay visible.</p></article>
+              <article class="card"><strong>Execution Audit</strong><p>UI surface for timelines, verifier results, repair attempts, compiler candidates, memory, and retrieval.</p></article>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <div class="section-head">
+            <h2>The execution flow stays inspectable.</h2>
+            <p>Kane preserves the important parts of agent execution as platform records instead of burying them in prompt text, temporary logs, or agent-private state.</p>
+          </div>
+          <div class="steps">
+            <article class="step"><span>Step 1</span><strong>Task</strong></article>
+            <article class="step"><span>Step 2</span><strong>Run</strong></article>
+            <article class="step"><span>Step 3</span><strong>RunStep</strong></article>
+            <article class="step"><span>Step 4</span><strong>Worker / Bridge</strong></article>
+            <article class="step"><span>Step 5</span><strong>Reconcile</strong></article>
+          </div>
+        </section>
+
+        <section id="download" class="dark download">
+          <div>
+            <h2>Download and run locally.</h2>
+            <p>Kane v2.0.0 is designed for local/private use. Clone the repository, install dependencies, run setup, and start the local Web/API/Bridge stack.</p>
+            <div class="hero-actions">
+              <a class="button primary" href="https://github.com/alvin20062006-beep/Kane-Agent-Platform/archive/refs/heads/main.zip">Download ZIP</a>
+              <a class="button" href="https://github.com/alvin20062006-beep/Kane-Agent-Platform#quick-start">Quick Start</a>
+            </div>
+          </div>
+          <div class="download-box">
+            <pre>npm run typecheck:web
+npm run test:api
+npm run test:bridge
+npm run wait:stack
+npm run test:e2e:smoke</pre>
+          </div>
+        </section>
+
+        <footer>
+          <span>Kane Agent Platform v2.0.0</span>
+          <span>Local-first. Inspectable. Built for agent execution.</span>
+        </footer>
+      </div>
+    </main>
+  </body>
+</html>

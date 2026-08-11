@@ -1,4 +1,8 @@
-# Kane Agent Platform v2.0.0
+﻿# Kane Agent Platform v2.0.0
+
+[Website](https://alvin20062006-beep.github.io/Kane-Agent-Platform/) |
+[Download ZIP](https://github.com/alvin20062006-beep/Kane-Agent-Platform/archive/refs/heads/main.zip) |
+[GitHub Release](https://github.com/alvin20062006-beep/Kane-Agent-Platform/releases/tag/v2.0.0)
 
 Kane Agent Platform is a local-first Agent Operating System for agent execution. It combines a Next.js Web UI, FastAPI control plane, Local Bridge, agent adapters, task execution loop, memory audit, retrieval, verifier records, repair records, and background memory compilation into one local control surface.
 
@@ -8,7 +12,7 @@ Kane Agent Platform is a local-first Agent Operating System for agent execution.
 
 Kane is not a Memory Framework, a RAG Framework, or a Workflow Engine. Memory, retrieval, MoA-style reference review, verification, repair, and UI audit surfaces exist to support agent execution.
 
-## ⭐ Why Kane?
+## Why Kane?
 
 Modern agent systems are becoming powerful, but many of them still hide the most important part of the system: execution.
 
@@ -52,7 +56,7 @@ The goal is simple:
 
 Not just executable.
 
-## ⭐ What Is Kane
+## What Is Kane
 
 Kane is the platform. It owns the control plane, Task -> Run -> RunStep execution model, worker queue, memory ledger, retrieval services, verifier and repair records, background compiler, Local Bridge integration, and Web UI.
 
