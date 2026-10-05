@@ -112,11 +112,12 @@ async def test_conversation_rename_title_only_and_real_delete(app_env):
     message = Message(conversation_id=conversation.conversation_id, turn_id=turn.turn_id, sender="user", content="Disposable")
     store.append_message(message, delivery_kind="message")
     store.append_event(TurnEvent(conversation_id=conversation.conversation_id, turn_id=turn.turn_id, event_type="progress"))
+    before_rename = store.get_conversation(conversation.conversation_id).model_dump()
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         url = f"/api/v1/conversations/{conversation.conversation_id}"
         response = await client.patch(url, json={"title": " After "})
         assert response.status_code == 200
-        assert response.json() == {**conversation.model_dump(), "title": "After"}
+        assert response.json() == {**before_rename, "title": "After"}
         assert (await client.patch(url, json={"title": " ", "bound_agent_id": "other"})).status_code == 422
         assert (await client.delete(url)).status_code == 204
         assert (await client.get(url)).status_code == 404
@@ -458,6 +459,61 @@ async def test_turn_detail_projects_only_bound_permissions_and_safe_activity(app
         assert "PRIVATE" not in response.text and "secret_argument" not in response.text
         assert store.get_turn(turn.turn_id).status == "running"
         assert len(adapter._pending_permissions) == 3
+
+
+@pytest.mark.asyncio
+async def test_turn_detail_projects_connector_permission(app_env):
+    from app.adapters.connector_adapter import ConnectorAdapter, PendingConnectorPermission
+
+    app, store, coordinator, _, _ = app_env
+    adapter = ConnectorAdapter("external", AgentCapabilities(supports_approval=True), coordinator)
+    coordinator.register_adapter("external", adapter)
+    conversation = Conversation(bound_agent_id="external")
+    store.save_conversation(conversation)
+    turn = Turn(conversation_id=conversation.conversation_id, bound_agent_id="external", native_session_ref="external-session")
+    store.save_turn(turn)
+    adapter._permissions["permission-1"] = PendingConnectorPermission(
+        request_id="permission-1", session_id="external-session", turn_id=turn.turn_id,
+        title="Approve file write", created_at=1.0,
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get(f"/api/v1/turns/{turn.turn_id}")
+    assert response.status_code == 200
+    assert response.json()["pending_permissions"] == [
+        {"request_id": "permission-1", "title": "Approve file write", "created_at": 1.0}
+    ]
+
+
+@pytest.mark.asyncio
+async def test_connector_permission_cannot_be_answered_from_another_turn(app_env, monkeypatch):
+    from app.adapters.connector_adapter import ConnectorAdapter, PendingConnectorPermission
+
+    app, store, coordinator, _, _ = app_env
+    adapter = ConnectorAdapter("external", AgentCapabilities(supports_approval=True), coordinator)
+    coordinator.register_adapter("external", adapter)
+    conversation = Conversation(bound_agent_id="external")
+    store.save_conversation(conversation)
+    owner = Turn(conversation_id=conversation.conversation_id, bound_agent_id="external", native_session_ref="shared-session")
+    other = Turn(conversation_id=conversation.conversation_id, bound_agent_id="external", native_session_ref="shared-session")
+    store.save_turn(owner)
+    store.save_turn(other)
+    adapter._permissions["permission-1"] = PendingConnectorPermission(
+        request_id="permission-1", session_id="shared-session", turn_id=owner.turn_id,
+        title="Approve file write", created_at=1.0,
+    )
+    calls = []
+
+    async def record_response(*args, **kwargs):
+        calls.append((args, kwargs))
+
+    monkeypatch.setattr(adapter, "respond_permission", record_response)
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.post(
+            f"/api/v1/turns/{other.turn_id}/permissions/permission-1/respond",
+            json={"decision": "allow-once"},
+        )
+    assert response.status_code == 400
+    assert calls == []
 
 
 @pytest.mark.asyncio

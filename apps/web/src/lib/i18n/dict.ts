@@ -2,6 +2,7 @@ export type Locale = "zh" | "en";
 export type Dict = Record<string, string>;
 
 const en: Dict = {
+  apiTokenTitle: "Connect to Kane API", apiTokenLabel: "API access token", apiTokenConnect: "Connect",
   currentTurn: "Current Turn", connectorRepository: "Kane repository on the Agent host", copyMcpConfig: "Copy MCP configuration", copyConnectGuide: "Copy Agent connection instructions", mcpBootstrap: "Skill / MCP connection",
   externalLoopRequest: "Loop request: execute {iterations} iterations using your own Agent runtime. Kane only forwards this instruction; execution and stopping are your responsibility.",
   externalLoopUnlimitedRequest: "Loop request: use your own Agent runtime with no iteration limit until I ask you to stop. Kane only forwards this instruction; execution and stopping are your responsibility.",
@@ -20,6 +21,7 @@ const en: Dict = {
 };
 
 const zh: Dict = {
+  apiTokenTitle: "连接 Kane API", apiTokenLabel: "API 访问令牌", apiTokenConnect: "连接",
   currentTurn: "当前 Turn", connectorRepository: "Agent 所在机器的 Kane 仓库路径", copyMcpConfig: "复制 MCP 配置", copyConnectGuide: "复制 Agent 接入指令", mcpBootstrap: "Skill / MCP 接入",
   externalLoopRequest: "Loop 指令：请使用你自己的 Agent 运行机制执行 {iterations} 轮。Kane 只传递本指令，执行和停止由你负责。",
   externalLoopUnlimitedRequest: "Loop 指令：请使用你自己的 Agent 运行机制不限轮次执行，直到我要求停止。Kane 只传递本指令，执行和停止由你负责。",

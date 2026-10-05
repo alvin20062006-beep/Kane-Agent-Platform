@@ -1,6 +1,6 @@
-# Kane-Kanaloa v3.0 (Beta)
+# Kane-Kanaloa v3.0.1 (Beta)
 
-Release tag: **v3.0.0-beta**. Early evaluation release: **known and unknown bugs
+Release tag: **v3.0.1-beta**. Early evaluation release: **known and unknown bugs
 may exist**. This is not a production-readiness guarantee. Back up your data,
 use disposable workspaces for testing, and review Agent side effects.
 
@@ -40,7 +40,7 @@ Kane Core. Pinned DSH packages 0.1.5-rc.3 are installed with Kane; a separate
 stock DSH application is not required.
 
 ```powershell
-git clone --branch v3.0.0-beta https://github.com/alvin20062006-beep/Kane-Agent-Platform.git
+git clone --branch v3.0.1-beta https://github.com/alvin20062006-beep/Kane-Agent-Platform.git
 cd Kane-Agent-Platform
 npm ci
 npm run setup:api
@@ -63,6 +63,9 @@ Runtime databases, credentials, logs and caches are excluded from Git.
 complete vNext configuration contract. Set API process variables explicitly.
 Do not expose the unauthenticated local default publicly; use
 `OCTOPUS_API_TOKEN`, protected transport and deployment network controls.
+When API token protection is enabled, the Web UI asks for that access token.
+It is held in browser tab session storage and sent with API/SSE requests;
+the Web proxy never substitutes its own server-side token for an anonymous caller.
 
 ## External Agents
 
@@ -96,8 +99,8 @@ Full suites were not rerun as a release gate; see [release notes](RELEASE_NOTES.
 - Approval depends on actual Agent/tool behavior.
 - External compatibility, tools and Windows environment setup remain variable.
 - Current UI model configuration centers on OpenAI-compatible APIs.
-- Some historical docs and internal version metadata still say v2.0.0; the
-  release tag identifies this vNext v3 beta. Historical v2 tags remain unchanged.
+- The optional legacy Local Bridge still reports v2.0.0 and is not the vNext
+  Connector transport. Historical v2 tags remain unchanged.
 
 [CHANGELOG](CHANGELOG.md) | [RELEASE_NOTES](RELEASE_NOTES.md) |
 [Third-party notices](THIRD_PARTY_NOTICES.md).

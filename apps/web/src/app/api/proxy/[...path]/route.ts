@@ -8,7 +8,7 @@ async function proxy(req: Request, { params }: { params: Promise<{ path: string[
     return Response.json({ detail: "Unknown API path" }, { status: 404 });
   }
   const incoming = new URL(req.url);
-  if (req.method === "POST" && req.headers.get("origin")) {
+  if (!["GET", "HEAD"].includes(req.method) && req.headers.get("origin")) {
     let originHost: string;
     try { originHost = new URL(req.headers.get("origin")!).host; }
     catch { return Response.json({ detail: "Invalid request origin" }, { status: 403 }); }
@@ -16,7 +16,7 @@ async function proxy(req: Request, { params }: { params: Promise<{ path: string[
   }
   const headers = new Headers({ Accept: req.headers.get("accept") ?? "application/json" });
   const authorization = req.headers.get("authorization");
-  const token = req.headers.get("x-api-key") ?? process.env.OCTOPUS_API_TOKEN;
+  const token = req.headers.get("x-api-key");
   if (authorization) headers.set("Authorization", authorization);
   if (token) headers.set("X-Api-Key", token);
     if (req.method === "POST" || req.method === "PUT" || req.method === "PATCH") headers.set("Content-Type", "application/json");

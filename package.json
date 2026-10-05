@@ -2,8 +2,8 @@
     "name": "kane-agent-platform",
     "private": true,
     "license": "UNLICENSED",
-    "version": "2.0.0",
-    "description": "Kane Agent Platform v2.0.0 monorepo (proprietary).",
+    "version": "3.0.1-beta",
+    "description": "Kane-Kanaloa v3 beta monorepo (proprietary).",
     "workspaces": [
         "apps/*",
         "packages/*"
@@ -39,7 +39,6 @@
         "@deepseek-ai/dsh-acp": "0.1.5-rc.3"
     },
     "devDependencies": {
-        "concurrently": "^9.2.1",
         "playwright": "^1.59.1"
     }
 }

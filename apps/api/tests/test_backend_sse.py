@@ -76,7 +76,8 @@ async def test_sse_live_events_deltas_and_completion(sse_env):
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
         # Background task producing events after client connects
         async def produce_events():
-            await asyncio.sleep(0.05)
+            while "t_sse" not in coord._listeners:
+                await asyncio.sleep(0)
             await adapter.simulate_thinking_and_tool("t_sse", "Thinking about math...", "calc", {"expr": "2+2"})
             await coord.emit_delta("t_sse", "The result ")
             await coord.emit_delta("t_sse", "is 4.")
@@ -257,8 +258,12 @@ async def test_sse_multiple_concurrent_subscribers_no_crosstalk(sse_env):
         task1 = asyncio.create_task(sub1())
         task2 = asyncio.create_task(sub2())
 
-        # Give subscribers time to connect
-        await asyncio.sleep(0.05)
+        # ASGITransport may defer the streaming response; wait for both subscriptions.
+        async def both_subscribed():
+            while len(coord._listeners.get("t_multi_sub", ())) < 2:
+                await asyncio.sleep(0.01)
+
+        await asyncio.wait_for(both_subscribed(), timeout=5)
         assert len(coord._listeners["t_multi_sub"]) == 2
 
         # Emit deltas and complete

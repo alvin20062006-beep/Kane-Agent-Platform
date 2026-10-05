@@ -70,16 +70,16 @@ async def get_turn(
     detail = TurnDetailResponse(**turn.model_dump())
     if coordinator.has_adapter(turn.bound_agent_id):
         adapter = coordinator.get_adapter(turn.bound_agent_id)
-        if turn.native_session_ref and hasattr(adapter, "list_pending_permissions"):
-            detail.pending_permissions = [
-                PendingPermissionView(
-                    request_id=str(p.request_id),
-                    title=str(p.tool_call.get("title") or p.tool_call.get("toolName") or p.tool_call.get("name") or "Agent permission request"),
-                    created_at=p.created_at,
-                )
-                for p in adapter.list_pending_permissions(session_id=turn.native_session_ref)
-                if p.turn_id == turn_id
-            ]
+        if hasattr(adapter, "list_pending_permissions"):
+            for permission in adapter.list_pending_permissions(session_id=turn.native_session_ref):
+                if permission.turn_id != turn_id:
+                    continue
+                tool_call = getattr(permission, "tool_call", {}) or {}
+                detail.pending_permissions.append(PendingPermissionView(
+                    request_id=str(permission.request_id),
+                    title=str(getattr(permission, "title", None) or tool_call.get("title") or tool_call.get("toolName") or tool_call.get("name") or "Agent permission request"),
+                    created_at=permission.created_at,
+                ))
         runtime = getattr(adapter, "runtime", None)
         if runtime and runtime.is_loop_active(turn_id):
             # Read the existing runtime fact; this DTO owns no execution state.
@@ -174,6 +174,12 @@ async def respond_permission(
             status_code=400,
             detail=f"Agent '{turn.bound_agent_id}' does not support permissions",
         )
+
+    if hasattr(adapter, "list_pending_permissions") and not any(
+        str(permission.request_id) == request_id and permission.turn_id == turn_id
+        for permission in adapter.list_pending_permissions(session_id=turn.native_session_ref)
+    ):
+        raise HTTPException(status_code=400, detail="Permission does not belong to this Turn")
 
     try:
         await adapter.respond_permission(

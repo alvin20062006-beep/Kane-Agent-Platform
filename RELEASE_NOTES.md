@@ -1,11 +1,21 @@
-# Kane-Kanaloa v3.0.0-beta
+# Kane-Kanaloa v3.0.1-beta
 
-Date: 2026-10-03 (Australia/Sydney). Early evaluation release on
-`vnext/thin-harness`. **Known or unknown bugs may exist.** Not production,
-security, universal Agent compatibility or full product certification.
-Historical main/v2 tags are preserved; this release does not replace main.
-The earlier v0.1.0-beta tag was a naming error; v3.0.0-beta is the corrected
-release identity following v2. The old tag is retained for traceability.
+Date: 2026-10-05 (Australia/Sydney). Security/correctness patch on `main`.
+**Known or unknown bugs may exist.** This is not production or universal Agent
+compatibility certification. The earlier v3.0.0-beta and historical v2 tags remain.
+
+## Patch Changes
+
+- Fixed Web proxy privilege escalation when `OCTOPUS_API_TOKEN` is enabled:
+  anonymous callers can no longer inherit the server token. The Web UI now
+  accepts an explicit API access token in tab session storage for HTTP/SSE.
+- Fixed external Connector permission projection that returned HTTP 500 when
+  the UI requested a waiting Turn's details; rejected cross-Turn approval IDs.
+- Upgraded Next.js to 16.3.8 and removed an unused vulnerable dev dependency.
+  `npm audit --omit=dev` reports zero advisories at release time; dev-only
+  lint/build dependencies retain advisory reports and should be revisited.
+- API and Web version metadata now identify v3.0.1-beta. Optional legacy
+  Local Bridge continues to report v2.0.0.
 
 ## Scope
 
@@ -16,9 +26,12 @@ No feature development or architecture refactor was performed during release pre
 
 ## Release Checks
 
-- Web typecheck: PASS.
-- Existing read-only stack smoke: PASS; API health 200, Web 200, no observed
-  browser console errors or bad HTTP responses.
+- Web typecheck/build and full UI E2E: PASS, including anonymous/token proxy
+  checks, conversation/approval/Loop/SSE and Connector pairing flows.
+- API: 184 passed, 9 skipped (environment-dependent real Runtime tests).
+- Bridge: 4 passed. MCP: 4 passed. Connector conformance: 7 passed.
+- Web lint remains non-green on two pre-existing local pin-preference effects
+  (`react-hooks/set-state-in-effect`); two image optimization warnings remain.
 - Secret scan: no real secrets found in publishable files or new branch history.
   Test placeholders were reviewed.
 - Git integrity: PASS. Dangling objects are not repository corruption.
@@ -27,8 +40,9 @@ No feature development or architecture refactor was performed during release pre
 - Upstream DSH MIT notice preserved in THIRD_PARTY_NOTICES.md. Installed DSH
   packages retain LICENSE files; node_modules and virtual environments are excluded.
 
-No full API, Bridge, MCP, Connector, UI or real model/crash suite was rerun
-as a release gate. No fresh-machine or all-Agent acceptance was performed.
+No fresh-machine, all-Agent or live model/crash acceptance was performed for
+this patch. The E2E suite uses an isolated fixture Runtime, not the user's
+saved Provider credentials.
 
 ## Earlier Evidence, Not A Fresh Release Retest
 
@@ -53,9 +67,8 @@ isolated independent child-process crash test.
 - UI model setup focuses on OpenAI-compatible Base URL/Model/API Key; not every
   Backend option has a UI control.
 - All external Agents, fresh install, cross-machine reconnect, production
-  deployment, load/security testing and full UI suite were not retested here.
-- Historical docs and package/API version strings may still report v2.0.0.
-  This release's identity is v3.0.0-beta.
+  deployment, load and adversarial security testing were not retested here.
+- Some historical docs and the optional legacy Bridge still say v2.0.0.
 - Never expose the default local unauthenticated service to the Internet.
 
 ## Data And Licensing

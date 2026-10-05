@@ -27,11 +27,24 @@ async function responseError(response: Response): Promise<ApiRequestError> {
 
 const url = (path: string) => `/api/proxy/api/v1${path}`;
 const id = encodeURIComponent;
+const accessTokenKey = "kane.apiAccessToken";
+
+export function setApiAccessToken(token: string) {
+  sessionStorage.setItem(accessTokenKey, token.trim());
+}
+
+function requestHeaders(body = false): Headers {
+  const headers = new Headers();
+  if (body) headers.set("Content-Type", "application/json");
+  const token = sessionStorage.getItem(accessTokenKey);
+  if (token) headers.set("X-Api-Key", token);
+  return headers;
+}
 
 async function request<T>(path: string, body?: unknown, signal?: AbortSignal, method?: string): Promise<T> {
   const response = await fetch(url(path), {
     method: method ?? (body === undefined ? "GET" : "POST"),
-    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    headers: requestHeaders(body !== undefined),
     body: body === undefined ? undefined : JSON.stringify(body),
     cache: "no-store",
     signal: signal ?? AbortSignal.timeout(30000),
@@ -68,7 +81,9 @@ export const api = {
 
 /** Read SSE frames, including frames split across transport chunks. Never replay. */
 export async function streamTurn(tid: string, signal: AbortSignal, onEvent: (type: string, data: unknown) => void) {
-  const response = await fetch(url(`/turns/${id(tid)}/stream`), { signal, cache: "no-store", headers: { Accept: "text/event-stream" } });
+  const headers = requestHeaders();
+  headers.set("Accept", "text/event-stream");
+  const response = await fetch(url(`/turns/${id(tid)}/stream`), { signal, cache: "no-store", headers });
   if (!response.ok) throw await responseError(response);
   if (!response.body || !response.headers.get("content-type")?.includes("text/event-stream")) throw new Error("Event stream unavailable");
   const reader = response.body.getReader();

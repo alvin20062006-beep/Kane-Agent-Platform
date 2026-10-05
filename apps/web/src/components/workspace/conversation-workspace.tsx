@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { api, type Agent, type Conversation, type Message, type SendBody, type Turn } from "@/lib/api";
+import { api, ApiRequestError, setApiAccessToken, type Agent, type Conversation, type Message, type SendBody, type Turn } from "@/lib/api";
 import { useT } from "@/lib/i18n/LocaleProvider";
 import { useTurn } from "@/lib/use-turn";
 import { AppRail } from "../app-rail";
@@ -41,6 +41,8 @@ export function ConversationWorkspace({ connectorEndpoint }: { connectorEndpoint
   const [loopDrafts, setLoopDrafts] = useState<Record<string, LoopDraft>>({});
   const [name, setName] = useState("");
   const [newAgent, setNewAgent] = useState("");
+  const [apiToken, setApiToken] = useState("");
+  const [authDismissed, setAuthDismissed] = useState(false);
   const [reply, setReply] = useState<Message | null>(null);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [narrow, setNarrow] = useState(false);
@@ -267,8 +269,10 @@ export function ConversationWorkspace({ connectorEndpoint }: { connectorEndpoint
   const connectionText = { loading: "syncing", live: "connected", settled: "saved", reconnecting: "reconnecting", disconnected: "disconnected" }[connection];
   const agentStatus = agent?.status === "ready" ? "agentReady" : agent?.status === "idle" ? "agentIdle" : agent?.status === "unavailable" ? "agentUnavailable" : agent?.status ?? "agentUnavailable";
   const modalTitle = dialog?.kind === "rename" ? t("renameConversation") : dialog?.kind === "delete" ? t("deleteConversation") : dialog?.kind === "conversation" ? t("newConversation") : dialog?.kind === "task" ? t("newTask") : dialog?.kind === "branch" ? t("createBranch") : t("cancelTitle");
+  const needsApiToken = [listError, factsError, actionError, streamError].some(error => error instanceof ApiRequestError && error.status === 401);
 
   return <div className={`kane-app-frame workspace ${agentDirectoryOpen ? "agents-open" : ""} ${sidebarOpen ? "sidebar-open" : ""} ${inspectorOpen && selectedId ? "inspector-open" : ""}`}>
+    {needsApiToken && !authDismissed && <Modal title={t("apiTokenTitle")} onClose={() => setAuthDismissed(true)}><form onSubmit={event => { event.preventDefault(); if (!apiToken.trim()) return; setApiAccessToken(apiToken); setApiToken(""); void refreshList(); if (selectedId) void refreshFacts(selectedId).catch(setFactsError); refreshTurn(); }}><label className="form-field">{t("apiTokenLabel")}<input type="password" autoComplete="off" value={apiToken} onChange={event => setApiToken(event.target.value)} required /></label><footer className="modal-actions"><button type="submit" className="button primary" disabled={!apiToken.trim()}>{t("apiTokenConnect")}</button></footer></form></Modal>}
     <a className="skip-link" href="#conversation-main">{t("conversations")}</a>
     <AppRail online={listLoading ? null : !listError} onChat={() => { setSidebarMode("agent"); setAgentDirectoryOpen(narrow); setSidebarOpen(false); setInspectorOpen(false); }} onRecents={() => { setSidebarMode("recent"); setAgentDirectoryOpen(false); setSidebarOpen(true); setInspectorOpen(false); }} onKanaloaSettings={() => setAgentPanel("kanaloa")} onSettings={() => setAgentPanel("settings")} />
     <aside id="agent-directory" className="workspace-agent-directory" role={narrow ? "dialog" : undefined} aria-modal={narrow && agentDirectoryOpen ? true : undefined} aria-label={t("agents")} inert={narrow && !agentDirectoryOpen}>
@@ -280,6 +284,7 @@ export function ConversationWorkspace({ connectorEndpoint }: { connectorEndpoint
     <div className="workspace-body">
       <div className="workspace-content"><main id="conversation-main" className="conversation-main" tabIndex={-1}>
         <div className="workspace-selection">
+          {needsApiToken && authDismissed && <button className="button secondary compact" onClick={() => setAuthDismissed(false)}>{t("apiTokenConnect")}</button>}
           <IconButton className="mobile-navigation" label={t("openConversations")} onClick={() => { setSidebarOpen(true); setAgentDirectoryOpen(false); }}>☰</IconButton>
           <label>{t("agent")}<select aria-label={t("selectAgent")} value={selectedAgentId ?? ""} disabled={listLoading || busy} onChange={event => selectAgent(event.target.value)}>{!selectedAgentId && <option value="">{t("emptyAgent")}</option>}{displayAgents.map(item => <option key={item.agent_id} value={item.agent_id}>{item.display_name} · {t(item.status === "ready" ? "agentReady" : item.status === "idle" ? "agentIdle" : "agentUnavailable")}</option>)}</select></label>
           {selectedId && <label>{t("currentTurn")}<select aria-label={t("currentTurn")} value={selectedTurn ?? ""} disabled={factsLoading || busy || !turns.length} onChange={event => setSelectedTurn(event.target.value || null)}>{!selectedTurn && <option value="">{t("noTurns")}</option>}{projectedTurns.map(turn => <option key={turn.turn_id} value={turn.turn_id}>{turnTitle(turn, t)} · {t(`status.${turn.status}`)}{turn.turn_id === conversation?.focus_turn_id ? ` · ${t("focus")}` : ""}</option>)}</select></label>}

@@ -90,6 +90,7 @@ try {
   browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 960 } });
   await context.addInitScript(() => { if (!localStorage.getItem("kane.locale")) localStorage.setItem("kane.locale", "en"); });
+  await context.addInitScript(value => sessionStorage.setItem("kane.apiAccessToken", value), token);
   page = await context.newPage();
   page.setDefaultTimeout(15000);
   page.on("pageerror", error => pageErrors.push({ stage, message: error.message }));
@@ -105,6 +106,24 @@ try {
   async function send(text) { await page.getByRole("textbox", { name: "Message", exact: true }).fill(text); await page.getByRole("button", { name: "Send", exact: true }).click(); await poll(() => currentTurn()); }
   async function newTask(name) { await page.locator(".composer-region").getByRole("button", { name: "New task", exact: true }).click(); const modal = page.getByRole("dialog"); await modal.getByRole("textbox", { name: "Task title" }).fill(name); await modal.getByRole("button", { name: "Create task", exact: true }).click(); await modal.waitFor({ state: "hidden" }); await poll(async () => currentTurn() ? (await apiGet(`/api/v1/turns/${currentTurn()}`)).title : null, value => value === name); }
   async function screenshot(name) { await page.screenshot({ path: path.join(output, `${name}.png`), fullPage: false, animations: "disabled" }); }
+
+  await check("Web proxy requires caller token and checks mutation origin", async () => {
+    const target = `${webBase}/api/proxy/api/v1/conversations`;
+    assert.equal((await fetch(target)).status, 401);
+    assert.equal((await fetch(target, { headers: { "X-Api-Key": "wrong" } })).status, 401);
+    assert.equal((await fetch(target, { headers: { "X-Api-Key": token } })).status, 200);
+    assert.equal((await fetch(target, { method: "DELETE", headers: { "X-Api-Key": token, Origin: "https://attacker.example" } })).status, 403);
+    const unauthenticated = await browser.newContext();
+    await unauthenticated.addInitScript(() => localStorage.setItem("kane.locale", "en"));
+    const loginPage = await unauthenticated.newPage();
+    try {
+      await loginPage.goto(webBase, { waitUntil: "domcontentloaded" });
+      const dialog = loginPage.getByRole("dialog", { name: "Connect to Kane API" });
+      await dialog.getByLabel("API access token").fill(token);
+      await dialog.getByRole("button", { name: "Connect", exact: true }).click();
+      await dialog.waitFor({ state: "hidden" });
+    } finally { await unauthenticated.close(); }
+  });
 
   await check("three-field model form / existing HTTP contract / no external page", async () => {
     await page.goto(webBase, { waitUntil: "domcontentloaded" });

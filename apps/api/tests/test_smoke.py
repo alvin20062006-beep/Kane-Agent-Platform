@@ -12,7 +12,7 @@ from app.store.sqlite_store import SQLiteStore
 
 def test_api_imports_and_creates_app():
     assert app.title == "Kane Agent Platform API"
-    assert app.version == "2.0.0"
+    assert app.version == "3.0.1-beta"
 
 
 def test_default_lifespan_starts_without_vendor_specific_external_adapters():
@@ -33,7 +33,7 @@ def test_health_endpoint_responds_honestly():
     body = response.json()
     assert body["status"] == "ok"
     assert body["service"] == "kane-agent-platform-api"
-    assert body["version"] == "2.0.0"
+    assert body["version"] == "3.0.1-beta"
     assert "startup" in body
 
     # Confirm no legacy task/run/watchdog/diagnostics fields
