@@ -3,10 +3,12 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Kane-Kanaloa v3.0.1-beta</title>
+    <title>Kane Agent Platform — Your local Agent workspace</title>
+    <link rel="icon" href="images/kane-octopus.png" />
+    <link rel="canonical" href="https://alvin20062006-beep.github.io/Kane-Agent-Platform/" />
     <meta
       name="description"
-      content="Kane-Kanaloa: long-running conversations, concurrent AI work and persistent Python execution. A thin, model-free Conversation to Agent Harness."
+      content="Kane Agent Platform: a local-first workspace for ongoing AI conversations, parallel Agent tasks and user-controlled execution."
     />
     <style>
       :root {
@@ -30,6 +32,8 @@
         background: #fff7eb;
       }
       a { color: inherit; text-decoration: none; }
+      a:focus-visible { outline: 3px solid #ff8a1f; outline-offset: 4px; }
+      @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
       img { display: block; max-width: 100%; }
 
       .page { min-height: 100vh; padding: 18px; }
@@ -118,7 +122,6 @@
       .image-panel { overflow: hidden; border: 1px solid rgba(102, 48, 9, 0.16); border-radius: 22px; background: #fff8ef; box-shadow: var(--soft-shadow); }
       .image-panel img { width: 100%; height: 100%; min-height: 320px; object-fit: cover; }
       .image-panel.arch img { object-fit: contain; padding: 24px; background: #fff8ef; }
-      .architecture-flow { margin: 0; padding: 28px; color: var(--ink); line-height: 2; overflow-wrap: anywhere; }
       .steps { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
       .step { min-height: 132px; padding: 18px; border: 1px solid rgba(102, 48, 9, 0.16); border-radius: 18px; background: rgba(255, 250, 243, 0.82); }
       .step span { color: var(--orange); font-size: 13px; font-weight: 850; }
@@ -152,31 +155,30 @@
         <header class="topbar">
           <a class="brand" href="#">
             <span class="mark"><img src="images/kane-octopus.png" alt="" /></span>
-            <span>Kane-Kanaloa <small>Long-running conversations. Persistent AI execution.</small></span>
+            <span>Kane Agent Platform <small>One workspace. Your Agents. Work that keeps moving.</small></span>
           </a>
           <nav aria-label="Primary">
             <a href="#features">Features</a>
-            <a href="#architecture">Architecture</a>
-            <a href="#download">Download</a>
-            <a href="https://github.com/K-kanoloa/Kane-kanoloa">GitHub</a>
+            <a href="#download">Get started</a>
+            <a href="https://github.com/alvin20062006-beep/Kane-Agent-Platform">GitHub</a>
           </nav>
         </header>
 
         <section class="hero">
           <div>
-            <h1>Kane-Kanaloa</h1>
+            <h1>Kane Agent Platform</h1>
             <p>Keep the conversation moving while AI work continues. Run Kanaloa locally, guide work mid-task, follow parallel Turns and connect your own Agents through one shared protocol.</p>
             <div class="hero-actions">
-              <a class="button primary" href="https://github.com/K-kanoloa/Kane-kanoloa/archive/refs/heads/main.zip">Download ZIP</a>
-              <a class="button" href="https://github.com/K-kanoloa/Kane-kanoloa">View on GitHub</a>
-              <a class="button" href="https://github.com/K-kanoloa/Kane-kanoloa/blob/main/packages/kanaloa-tools/ACCEPTANCE.md">Runtime evidence</a>
+              <a class="button primary" href="https://github.com/alvin20062006-beep/Kane-Agent-Platform/archive/refs/heads/main.zip">Download ZIP</a>
+              <a class="button" href="https://github.com/alvin20062006-beep/Kane-Agent-Platform">View on GitHub</a>
             </div>
             <div class="terminal" aria-label="Quick start">
               <div class="dots"><span></span><span></span><span></span></div>
-              <pre>git clone https://github.com/K-kanoloa/Kane-kanoloa
-cd Kane-kanoloa
+              <pre>git clone https://github.com/alvin20062006-beep/Kane-Agent-Platform
+cd Kane-Agent-Platform
 npm ci
-npm run setup:api
+python3 -m venv apps/api/.venv
+apps/api/.venv/bin/python -m pip install -r apps/api/requirements.txt
 npm run dev:stack</pre>
             </div>
           </div>
@@ -200,33 +202,6 @@ npm run dev:stack</pre>
           </div>
         </section>
 
-        <section id="architecture" class="dark">
-          <div class="section-head">
-            <h2>One thin connection layer.</h2>
-            <p>Kane keeps messages, Turns and native sessions connected. Kanaloa and external Agents own their reasoning, tools and execution.</p>
-          </div>
-          <div class="image-grid">
-            <div class="image-panel"><pre class="architecture-flow">Web UI / your client
-        |
-        v
-Kane: Conversation &lt;-&gt; Agent Harness
-        |
-        +-- Kanaloa (built-in Agent)
-        |
-        +-- Generic ConnectorAdapter
-               ^
-               |
-            Agent-side Connector
-               |
-            Your external Agent</pre></div>
-            <div class="grid" style="grid-template-columns: 1fr;">
-              <article class="card"><strong>Kanaloa</strong><p>The bundled first-party Agent. Configure Base URL, Model and API Key directly in Kane. Python tools start only when invoked.</p></article>
-              <article class="card"><strong>Bring your own Agent</strong><p>Agent-side Connectors use the shared wire protocol. Skill and MCP assist setup; the Connector stays running to carry messages.</p></article>
-              <article class="card"><strong>Visible runtime facts</strong><p>Inspect status, partial output and approvals. One logical reply becomes one stored Message; streaming chunks stay live activity.</p></article>
-            </div>
-          </div>
-        </section>
-
         <section>
           <div class="section-head">
             <h2>Start with a conversation.</h2>
@@ -245,10 +220,10 @@ Kane: Conversation &lt;-&gt; Agent Harness
           <div>
             <h2>Download and run locally.</h2>
             <p>Clone the current source and start Web/API together on ports 3000/8000. Windows and Linux setup instructions are in the README. Optional Python tools require a Linux Docker engine; Windows uses Docker Desktop with Linux containers.</p>
-            <p>Beta software: known and unknown bugs may exist. Session rebind does not resume unfinished work, and live Python state is not a durable checkpoint. Linux host acceptance remains less complete than Windows-host/container acceptance.</p>
+            <p>Beta software: review Agent actions and use disposable workspaces for evaluation. Reconnecting a session does not guarantee interrupted work can resume. Live Python state does not survive a worker restart.</p>
             <div class="hero-actions">
-              <a class="button primary" href="https://github.com/K-kanoloa/Kane-kanoloa/archive/refs/heads/main.zip">Download ZIP</a>
-              <a class="button" href="https://github.com/K-kanoloa/Kane-kanoloa#windows-quick-start">Quick Start</a>
+              <a class="button primary" href="https://github.com/alvin20062006-beep/Kane-Agent-Platform/archive/refs/heads/main.zip">Download ZIP</a>
+              <a class="button" href="https://github.com/alvin20062006-beep/Kane-Agent-Platform#quick-start">Quick Start</a>
             </div>
           </div>
           <div class="download-box">
@@ -258,14 +233,14 @@ npm run setup:kanaloa-tools
 Configure in Kane:
 Base URL / Model / API Key
 
-Read the acceptance record for
-verified behavior and known limits.</pre>
+See the README for setup
+and optional tool requirements.</pre>
           </div>
         </section>
 
         <footer>
-          <span>Kane-Kanaloa v3.0.1-beta</span>
-          <span><a href="LICENSE.txt">PolyForm Noncommercial 1.0.0</a> · <a href="THIRD_PARTY_NOTICES.txt">Third-party notices</a></span>
+          <span>Kane Agent Platform v3.0.1-beta</span>
+          <span><a href="https://github.com/alvin20062006-beep/Kane-Agent-Platform/blob/main/LICENSE">PolyForm Noncommercial 1.0.0</a> · <a href="https://github.com/alvin20062006-beep/Kane-Agent-Platform/blob/main/THIRD_PARTY_NOTICES.md">Third-party notices</a></span>
         </footer>
       </div>
     </main>
